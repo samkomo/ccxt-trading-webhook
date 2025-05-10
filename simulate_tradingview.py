@@ -6,7 +6,7 @@ url = "https://ccxt-fastapi-webhook-1f2d93f5c1ad.herokuapp.com/webhook"
 
 payload = {
     "token": "cba4d11bd31f78dfad55214f827ae89674e6700ccf427d6b67844045d55c47ec",
-    "exchange": "bybit",
+    "exchange": "Bybit",
     "apiKey": "qqVTN5OcwqS894rjB0",
     "secret": "UYWEEclkTsrhkRBQTnw7pJtL6iuBckQQAPJE",
     "symbol": "SOL/USDT",

@@ -56,15 +56,23 @@ async def webhook(request: Request, payload: WebhookPayload):
         )
         logger.info(f"Order placed: {order}")
         return {"status": "success", "order": order}
-    except (ExchangeError, NetworkError) as ccxt_err:
-        logger.warning(f"CCXT error: {ccxt_err}")
-        raise HTTPException(status_code=502, detail=f"Exchange error: {str(ccxt_err)}")
+
+    except ExchangeError as ccxt_err:
+        logger.warning(f"CCXT exchange error: {ccxt_err}")
+        raise HTTPException(status_code=400, detail=f"Exchange error: {str(ccxt_err)}")
+
+    except NetworkError as net_err:
+        logger.warning(f"CCXT network error: {net_err}")
+        raise HTTPException(status_code=502, detail=f"Network error: {str(net_err)}")
+
     except ValueError as ve:
         logger.warning(f"Validation error: {ve}")
         raise HTTPException(status_code=422, detail=str(ve))
+
     except Exception as e:
         logger.exception("Unhandled server error")
         raise HTTPException(status_code=500, detail="Internal server error")
+
     finally:
         if exchange:
             await exchange.close()
