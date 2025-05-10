@@ -1,42 +1,70 @@
-from flask import Blueprint, request, jsonify
-from app.auth import verify_signature, is_recent_request
+from fastapi import APIRouter, HTTPException, Request, status
+from app.auth import verify_signature, verify_token
 from app.exchange_factory import get_exchange
+from typing import Optional
+from pydantic import BaseModel
 import logging
+from ccxt.base.errors import ExchangeError, NetworkError
 
-webhook_bp = Blueprint('webhook', __name__)
-logger = logging.getLogger('webhook_logger')
+router = APIRouter()
+logger = logging.getLogger("webhook_logger")
 
-@webhook_bp.route('/', methods=['GET'])
-def index():
-    return jsonify({'status': 'running', 'message': 'CCXT webhook server is live'}), 200
 
-@webhook_bp.route('/webhook', methods=['POST'])
-def webhook():
-    if not verify_signature(request):
-        logger.warning("Invalid signature")
-        return jsonify({'status': 'error', 'message': 'Invalid signature'}), 403
+class WebhookPayload(BaseModel):
+    """
+    Defines the expected structure of incoming webhook payloads.
 
-    if not is_recent_request(request):
-        logger.warning("Stale or missing timestamp")
-        return jsonify({'status': 'error', 'message': 'Invalid or expired timestamp'}), 403
+    Fields:
+        exchange (str): The exchange ID (e.g., 'binance').
+        apiKey (str): API key for the exchange.
+        secret (str): API secret for the exchange.
+        symbol (str): Trading pair symbol (e.g., 'BTC/USDT').
+        side (str): 'buy' or 'sell'.
+        amount (float): Amount of asset to buy/sell.
+        price (float): Limit price for the order.
+        token (Optional[str]): Fallback auth token (for unsigned clients like TradingView).
+    """
+    exchange: str
+    apiKey: str
+    secret: str
+    symbol: str
+    side: str
+    amount: float
+    price: float
+    token: Optional[str] = None
 
-    data = request.json
+
+@router.post("/webhook")
+async def webhook(request: Request, payload: WebhookPayload):
+    if "X-Signature" in request.headers:
+        if not await verify_signature(request):
+            logger.warning("Invalid HMAC signature")
+            raise HTTPException(status_code=403, detail="Invalid signature")
+    else:
+        if not verify_token(payload.token):
+            logger.warning("Missing or invalid token in fallback mode")
+            raise HTTPException(status_code=403, detail="Unauthorized")
+
+    exchange = None
     try:
-        # Required fields
-        exchange_id = data.get('exchange')
-        api_key = data.get('apiKey')
-        secret = data.get('secret')
-        symbol = data['symbol']
-        side = data['side']
-        amount = float(data['amount'])
-        price = float(data['price'])
-
-        # Instantiate exchange
-        exchange = get_exchange(exchange_id, api_key, secret)
-        order = exchange.create_limit_order(symbol, side, amount, price)
-
+        exchange = await get_exchange(payload.exchange, payload.apiKey, payload.secret)
+        order = await exchange.create_limit_order(
+            symbol=payload.symbol,
+            side=payload.side,
+            amount=payload.amount,
+            price=payload.price
+        )
         logger.info(f"Order placed: {order}")
-        return jsonify({'status': 'success', 'order': order})
+        return {"status": "success", "order": order}
+    except (ExchangeError, NetworkError) as ccxt_err:
+        logger.warning(f"CCXT error: {ccxt_err}")
+        raise HTTPException(status_code=502, detail=f"Exchange error: {str(ccxt_err)}")
+    except ValueError as ve:
+        logger.warning(f"Validation error: {ve}")
+        raise HTTPException(status_code=422, detail=str(ve))
     except Exception as e:
-        logger.exception("Failed to process webhook")
-        return jsonify({'status': 'error', 'message': str(e)}), 400
+        logger.exception("Unhandled server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        if exchange:
+            await exchange.close()

@@ -1,156 +1,235 @@
+# 🚀 CCXT FastAPI Async Webhook
 
-# 🚀 CCXT Trading Webhook
-
-A secure, scalable Flask-based webhook server for placing crypto orders on multiple exchanges using the CCXT library.
-
----
-
-## 🔧 Features
-
-- 🔐 HMAC SHA256 request authentication
-- ⏱ Timestamp validation to prevent replay attacks
-- 🔁 Dynamic exchange support via CCXT (e.g., Binance, Kraken)
-- 🧱 Modular Flask app structure
-- 🛠 Production-ready via Gunicorn and Heroku
-- 🧪 Built-in unit tests
-- 📋 Configurable via `.env`
+A production-grade, asynchronous webhook for executing crypto trades using TradingView alerts and `ccxt.async_support`. Secure, tested, and deployable.
 
 ---
 
-## 📦 Installation & Setup
+## 1. 🏁 Project Overview
+
+This project is a production-grade, asynchronous webhook server built with **FastAPI** for **executing cryptocurrency trades** via [TradingView](https://tradingview.com) alerts. It securely handles webhook requests and places live orders on supported crypto exchanges using the [`ccxt`](https://github.com/ccxt/ccxt) library (with async support).
+
+### 🎯 Use Cases
+- Automated trading via TradingView strategies
+- Backtest-to-execution pipeline
+- Scalable webhook backend for crypto signal platforms
+
+### 🛠 Built With
+- **FastAPI** – high-performance Python web framework
+- **CCXT (async_support)** – unified crypto exchange trading library
+- **pytest + httpx** – async-capable testing stack
+- **Heroku-ready** – cloud deployment via Procfile
+
+---
+
+## 2. 🚀 Features
+
+- ⚡ **Asynchronous** with FastAPI + `ccxt.async_support`
+- 🔐 **Secure dual-mode authentication** (HMAC + timestamp or token fallback)
+- 📡 **TradingView-compatible**
+- 🧪 **Full async test suite** with `pytest-asyncio` and mocking
+- ☁️ **Heroku deployment ready**
+
+---
+
+## 3. 📦 Installation & Setup
 
 ```bash
-# Clone the repo
 git clone https://github.com/your-username/ccxt-trading-webhook.git
 cd ccxt-trading-webhook
 
-# Create and activate a virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
-# Install dependencies
 pip install -r requirements.txt
 ```
 
 ---
 
-## 🔐 Environment Configuration
-
-Create a `.env` file in the project root:
+## 4. 🔐 Environment Variables
 
 ```env
 WEBHOOK_SECRET=your_shared_secret
 DEFAULT_EXCHANGE=binance
-DEFAULT_API_KEY=your_api_key
-DEFAULT_API_SECRET=your_api_secret
+DEFAULT_API_KEY=your_exchange_api_key
+DEFAULT_API_SECRET=your_exchange_api_secret
 LOG_LEVEL=INFO
 ```
 
+| Variable           | Description |
+|--------------------|-------------|
+| `WEBHOOK_SECRET`   | Shared secret for HMAC or token |
+| `DEFAULT_EXCHANGE` | Fallback exchange |
+| `DEFAULT_API_KEY`  | Optional fallback key |
+| `DEFAULT_API_SECRET` | Optional fallback secret |
+| `LOG_LEVEL`        | Logging verbosity |
+
 ---
 
-## 🧪 Run Tests
+## 5. ▶️ Running the Webhook Locally
 
 ```bash
-python -m unittest tests/test_webhook.py
+uvicorn main:app --reload
+```
+
+Test the health endpoint:
+
+```bash
+curl http://127.0.0.1:8000/
+```
+
+Simulate an alert:
+
+```bash
+python simulate_tradingview.py
 ```
 
 ---
 
-## 🧪 Run Locally
+## 6. 📡 Webhook Payload Format
 
-```bash
-python run.py
+### 🔐 A. Secure Mode
+
+Use headers:
+
+| Header | Description |
+|--------|-------------|
+| `X-Timestamp` | Unix time in seconds |
+| `X-Signature` | HMAC SHA256 using `WEBHOOK_SECRET` |
+
+Generate signature:
+
+```python
+hmac.new(secret.encode(), json_body.encode(), hashlib.sha256).hexdigest()
 ```
-
-Access the health check: [http://127.0.0.1:5000/](http://127.0.0.1:5000/)
 
 ---
 
-## 📡 Example Webhook Request
+### 🔁 B. Token Fallback Mode
 
-Send a signed POST request to `/webhook` with the following:
-
-**Headers:**
-
-- `Content-Type: application/json`
-- `X-Signature`: HMAC SHA256 of the raw JSON body, using `WEBHOOK_SECRET`
-- `X-Timestamp`: ISO 8601 UTC timestamp (e.g., `2025-05-09T12:00:00Z`)
-
-**JSON Body Example:**
+Use this when custom headers can't be set (e.g., TradingView):
 
 ```json
 {
-  "exchange": "binance",
-  "apiKey": "your_key",
-  "secret": "your_secret",
-  "symbol": "BTC/USDT",
-  "side": "buy",
-  "amount": 0.01,
-  "price": 30000
+  "token": "your_shared_secret",
+  ...
 }
 ```
 
-**Curl Example:**
+**How to Generate the Token:**  
+Use a secure random string as your shared secret and assign it to `WEBHOOK_SECRET` in your `.env`. Use the same value as the `token` in TradingView payloads.
+
+Generate a secure token:
 
 ```bash
-curl -X POST http://127.0.0.1:5000/webhook \
-  -H "Content-Type: application/json" \
-  -H "X-Signature: your_hmac_signature" \
-  -H "X-Timestamp: 2025-05-09T12:00:00Z" \
-  -d '{"exchange":"binance","apiKey":"...","secret":"...","symbol":"BTC/USDT","side":"buy","amount":0.01,"price":30000}'
+openssl rand -hex 32
 ```
 
 ---
 
-## 🚀 Deploy to Heroku (GitHub Integration)
+## 7. 🔁 TradingView Integration
 
-```bash
-# Initialize Git
-git init
-git remote add origin https://github.com/your-username/ccxt-trading-webhook.git
-git add .
-git commit -m "Initial commit"
-git push -u origin main
+- Set Webhook URL in the TradingView alert:
+  `https://your-app.herokuapp.com/webhook`
+
+- Paste the message as **one-line JSON**:
+
+```json
+{
+  "token": "your_shared_secret",
+  "exchange": "{{exchange}}",
+  "apiKey": "your_api_key",
+  "secret": "your_api_secret",
+  "symbol": "{{ticker}}",
+  "side": "{{strategy.order.action}}",
+  "amount": "{{strategy.order.contracts}}",
+  "price": "{{close}}"
+}
 ```
 
-Then:
+**Common Variables**:
 
-1. Go to [Heroku](https://dashboard.heroku.com/)
-2. Create a new app
-3. Connect GitHub repo under "Deploy"
-4. Set config variables from `.env`
-5. Click "Deploy Branch"
+| Variable                      | Description                                      |
+|------------------------------|--------------------------------------------------|
+| `{{strategy.order.action}}`  | `"buy"` or `"sell"` depending on strategy signal |
+| `{{strategy.order.id}}`      | Custom order ID from Pine script                 |
+| `{{strategy.position_size}}` | Size of the current position                     |
+| `{{strategy.order.contracts}}`| Number of contracts/units in the order           |
+| `{{close}}`                  | Close price of the current candle                |
+| `{{ticker}}`                 | Trading pair (e.g., `BTCUSDT`)                   |
+| `{{exchange}}`               | Exchange name (e.g., `BINANCE`)                  |
+| `{{time}}`                   | UNIX timestamp of the candle                     |
 
 ---
 
-## 🔥 Run with Gunicorn
+## 8. 🧪 Testing
+
+Run all tests:
 
 ```bash
-gunicorn run:app
+pytest tests/
+```
+
+Tests cover:
+- Token/HMAC auth
+- Timestamp checks
+- Order routing
+- Async safety
+
+Run a full local simulation:
+
+```bash
+python simulate_tradingview.py
 ```
 
 ---
 
-## 📁 Project Structure
+## 9. ☁️ Deployment (Heroku)
 
+### CLI-Based Deployment:
+
+```bash
+heroku create ccxt-fastapi-webhook
+heroku config:set WEBHOOK_SECRET=...
+git push heroku main
 ```
+
+### GitHub-Based Auto Deploy:
+
+1. Go to **Heroku Dashboard → Deploy tab**
+2. Choose GitHub → Connect your repo
+3. Enable Auto Deploy on `main`
+4. Set secrets under **Config Vars**:
+
+```bash
+heroku config:set WEBHOOK_SECRET=your_shared_secret
+heroku config:set DEFAULT_EXCHANGE=binance
+heroku config:set DEFAULT_API_KEY=your_api_key
+heroku config:set DEFAULT_API_SECRET=your_api_secret
+heroku config:set LOG_LEVEL=INFO
+```
+
+---
+
+## 10. 📂 Project Structure
+
+```text
 ccxt-trading-webhook/
 ├── app/
-│   ├── __init__.py
-│   ├── routes.py
 │   ├── auth.py
+│   ├── routes.py
+│   ├── exchange_factory.py
 │   ├── utils.py
-│   └── exchange_factory.py
-├── config/
-│   └── settings.py
-├── tests/
-│   └── test_webhook.py
+│   ├── mocks.py
+├── config/settings.py
+├── tests/test_webhook.py
+├── simulate_tradingview.py
+├── main.py
 ├── .env
-├── .gitignore
+├── .env.example
 ├── Procfile
-├── README.md
 ├── requirements.txt
-├── run.py
+├── runtime.txt
+├── README.md
 ```
 
 ---

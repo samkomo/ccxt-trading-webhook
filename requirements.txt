@@ -1,4 +1,8 @@
-flask
+fastapi
+uvicorn[standard]
 ccxt
-gunicorn
 python-dotenv
+pydantic-settings
+httpx
+pytest
+pytest-asyncio

@@ -1,50 +1,104 @@
-import unittest
+import sys
+import os
+import pytest
+import time
 import json
-from app import create_app
-from datetime import datetime
 import hmac
 import hashlib
-import os
+from typing import Optional
 
-class WebhookTestCase(unittest.TestCase):
-    def setUp(self):
-        self.app = create_app().test_client()
-        self.secret = os.getenv("WEBHOOK_SECRET", "test_secret")
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-    def _sign_payload(self, payload):
-        data = json.dumps(payload).encode()
-        signature = hmac.new(
-            key=self.secret.encode(),
-            msg=data,
-            digestmod=hashlib.sha256
-        ).hexdigest()
-        return signature, data
+from main import app
+from config.settings import settings
+from httpx import AsyncClient, ASGITransport
 
-    def test_health_check(self):
-        response = self.app.get('/')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("status", response.json)
+transport = ASGITransport(app=app)
 
-    def test_invalid_signature(self):
-        payload = {"test": "data"}
-        headers = {
-            "Content-Type": "application/json",
-            "X-Signature": "invalid",
-            "X-Timestamp": datetime.utcnow().isoformat() + "Z"
-        }
-        response = self.app.post('/webhook', data=json.dumps(payload), headers=headers)
-        self.assertEqual(response.status_code, 403)
+@pytest.mark.asyncio
+async def test_health_check():
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/")
+        assert response.status_code == 200
+        assert response.json()["status"] == "running"
 
-    def test_missing_timestamp(self):
-        payload = {"test": "data"}
-        sig, data = self._sign_payload(payload)
-        headers = {
-            "Content-Type": "application/json",
-            "X-Signature": sig
-        }
-        response = self.app.post('/webhook', data=data, headers=headers)
-        self.assertEqual(response.status_code, 403)
+@pytest.mark.asyncio
+async def test_missing_auth():
+    """
+    Sends a valid payload but no signature or token to simulate unauthorized access.
+    Expects a 403 Forbidden from your webhook logic.
+    """
+    payload = {
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000
+    }
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload)
+        assert response.status_code == 403
+        assert "unauthorized" in response.text.lower()
 
-# Run tests
-if __name__ == '__main__':
-    unittest.main()
+@pytest.mark.asyncio
+async def test_invalid_token():
+    payload = {
+        "token": "wrong_token",
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000
+    }
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload)
+        assert response.status_code == 403
+
+@pytest.mark.asyncio
+async def test_expired_timestamp():
+    payload = {
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000
+    }
+    timestamp = str(int(time.time()) - 600)
+    body = json.dumps(payload).encode()
+    signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
+    headers = {
+        "X-Signature": signature,
+        "X-Timestamp": timestamp,
+        "Content-Type": "application/json"
+    }
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", content=body, headers=headers)
+        assert response.status_code == 403
+
+@pytest.mark.asyncio
+async def test_invalid_signature():
+    payload = {
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000
+    }
+    timestamp = str(int(time.time()))
+    bad_signature = "deadbeef"
+    headers = {
+        "X-Signature": bad_signature,
+        "X-Timestamp": timestamp,
+        "Content-Type": "application/json"
+    }
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload, headers=headers)
+        assert response.status_code == 403

@@ -1,16 +1,30 @@
-import os
-from dotenv import load_dotenv
+"""
+App configuration loaded from .env using Pydantic v2 settings model.
+"""
 
-# Load environment variables from a .env file (if present)
-load_dotenv()
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Required for all requests
-WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET')
+class Settings(BaseSettings):
+    """
+    Settings loaded from environment variables or .env file.
 
-# Optional default exchange credentials (used only if dynamic ones aren't supplied)
-DEFAULT_EXCHANGE = os.getenv('DEFAULT_EXCHANGE', 'binance')
-DEFAULT_API_KEY = os.getenv('DEFAULT_API_KEY')
-DEFAULT_API_SECRET = os.getenv('DEFAULT_API_SECRET')
+    Fields:
+        WEBHOOK_SECRET (str): Shared secret for HMAC or token validation.
+        DEFAULT_EXCHANGE (str): Default exchange name (e.g., binance).
+        DEFAULT_API_KEY (str): Fallback API key if not provided in payload.
+        DEFAULT_API_SECRET (str): Fallback API secret.
+        LOG_LEVEL (str): Logging verbosity (DEBUG, INFO, etc.).
+    """
+    WEBHOOK_SECRET: str
+    DEFAULT_EXCHANGE: str
+    DEFAULT_API_KEY: str
+    DEFAULT_API_SECRET: str
+    LOG_LEVEL: str = "INFO"
 
-# For rate limiting, logging, etc. (expand as needed)
-LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8"
+    )
+
+# Global settings instance
+settings = Settings()
