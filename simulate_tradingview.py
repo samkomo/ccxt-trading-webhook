@@ -2,17 +2,17 @@ import requests
 import time
 import json
 
-url = "http://127.0.0.1:8000/webhook"
+url = "https://ccxt-fastapi-webhook-1f2d93f5c1ad.herokuapp.com/webhook"
 
 payload = {
-    "token": "your_shared_secret",
-    "exchange": "binance",
-    "apiKey": "dummy",
-    "secret": "dummy",
-    "symbol": "BTC/USDT",
+    "token": "cba4d11bd31f78dfad55214f827ae89674e6700ccf427d6b67844045d55c47ec",
+    "exchange": "bybit",
+    "apiKey": "qqVTN5OcwqS894rjB0",
+    "secret": "UYWEEclkTsrhkRBQTnw7pJtL6iuBckQQAPJE",
+    "symbol": "SOL/USDT",
     "side": "buy",
-    "amount": 0.01,
-    "price": 30000
+    "amount": 20,
+    "price": 178
 }
 
 headers = {

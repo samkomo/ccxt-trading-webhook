@@ -26,6 +26,8 @@ async def get_exchange(
     Returns:
         ccxt.Exchange: Configured async CCXT exchange client
     """
+    exchange_id = exchange_id.lower()  # 🛠 Normalize input
+
     try:
         exchange_class = getattr(ccxt, exchange_id)
     except AttributeError:
