@@ -11,6 +11,7 @@ async def get_exchange(
     exchange_id: str,
     api_key: Optional[str] = None,
     secret: Optional[str] = None
+    
 ):
     """
     Instantiate an async CCXT exchange with dynamic credentials.
@@ -49,6 +50,9 @@ async def get_exchange(
         exchange = exchange_class({
             'apiKey': api_key,
             'secret': secret,
+            'options': {
+                'defaultType': 'future'  # ← set this
+            }
         })
         return exchange
     except Exception as e:
