@@ -1,4 +1,5 @@
 import logging
+from pythonjsonlogger import jsonlogger
 from config.settings import settings
 
 def setup_logger(name: str = "webhook_logger") -> logging.Logger:
@@ -19,8 +20,8 @@ def setup_logger(name: str = "webhook_logger") -> logging.Logger:
     logger.setLevel(level)
 
     handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+    formatter = jsonlogger.JsonFormatter(
+        "%(asctime)s %(levelname)s %(name)s %(message)s"
     )
     handler.setFormatter(formatter)
     logger.addHandler(handler)

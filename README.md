@@ -29,6 +29,8 @@ This project is a production-grade, asynchronous webhook server built with **Fas
 - 🧪 **Full async test suite** with `pytest-asyncio` and mocking
 - ☁️ **Heroku deployment ready**
 - 🚦 **Per-IP rate limiting** via `slowapi`
+- 📑 **JSON structured logging** for easy ingestion
+- 📊 **Prometheus metrics** available at `/metrics`
 
 ---
 
@@ -59,6 +61,9 @@ RATE_LIMIT=10/minute
 SIGNATURE_CACHE_TTL=300
 TOKEN_TTL=86400
 REQUIRE_HTTPS=false
+QUEUE_ORDERS=false
+STATIC_API_KEY=
+REQUIRE_API_KEY=false
 ```
 
 | Variable           | Description |
@@ -72,6 +77,11 @@ REQUIRE_HTTPS=false
 | `SIGNATURE_CACHE_TTL` | Cache TTL for replay-protection signatures |
 | `TOKEN_TTL` | Expiration time for issued tokens (seconds) |
 | `REQUIRE_HTTPS` | Reject plain HTTP requests when set to `true` |
+| `QUEUE_ORDERS` | Enqueue orders to Celery when enabled |
+| `STATIC_API_KEY` | API key expected in the `X-API-Key` header |
+| `REQUIRE_API_KEY` | Enable static API key verification |
+
+Logs are emitted in JSON format for easier ingestion into log platforms.
 
 ---
 
@@ -88,6 +98,12 @@ curl http://127.0.0.1:8000/
 ```
 
 Interactive API docs are available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
+
+Expose metrics:
+
+```bash
+curl http://127.0.0.1:8000/metrics
+```
 
 Simulate an alert:
 
