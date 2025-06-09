@@ -1,4 +1,11 @@
-from fastapi import FastAPI, Request
+"""FastAPI application entry point.
+
+This module creates the ``FastAPI`` application instance, configures logging,
+rate limiting and metrics middleware, and registers the API routes used by the
+webhook service.
+"""
+
+from fastapi import FastAPI
 from app.routes import router as webhook_router
 import logging
 from app.utils import setup_logger
@@ -8,21 +15,34 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from app.metrics import MetricsMiddleware, metrics
 
+# Initialize application and configure logging
 app = FastAPI()
 setup_logger()
 
+# Register rate limiter and error handling middleware
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(MetricsMiddleware)
 
+# Mount application routes
 app.include_router(webhook_router)
 
 @app.get("/")
-async def health_check():
+async def health_check() -> dict:
+    """Health check endpoint used by monitoring systems.
+
+    Returns:
+        dict: Service status message.
+    """
     return {"status": "running", "message": "Webhook server ready"}
 
 
 @app.get("/metrics")
 async def metrics_endpoint():
+    """Expose Prometheus metrics collected by the ``MetricsMiddleware``.
+
+    Returns:
+        Any: Text metrics in Prometheus format.
+    """
     return metrics()
