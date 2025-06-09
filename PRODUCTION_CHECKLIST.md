@@ -57,5 +57,5 @@
 
 ## 📄 Documentation
 - [ ] Add inline docstrings for all utility and route functions
-- [ ] Generate OpenAPI schema and add `/docs` link in README
-- [ ] Include Postman collection for webhook usage
+ - [x] Generate OpenAPI schema and add `/docs` link in README
+ - [x] Include Postman collection for webhook usage

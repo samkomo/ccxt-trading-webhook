@@ -97,6 +97,8 @@ Test the health endpoint:
 curl http://127.0.0.1:8000/
 ```
 
+Interactive API docs are available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
+
 Expose metrics:
 
 ```bash
