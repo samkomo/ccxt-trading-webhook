@@ -16,7 +16,16 @@ logger = logging.getLogger("webhook_logger")
 
 
 async def _execute_order(payload: dict) -> dict:
-    """Execute an order using CCXT with the given payload."""
+    """Execute a market order asynchronously via CCXT.
+
+    Args:
+        payload: Dictionary containing order parameters. Expected keys are
+            ``exchange``, ``apiKey``, ``secret``, ``symbol``, ``side`` and
+            ``amount``.
+
+    Returns:
+        dict: Raw order data returned by CCXT.
+    """
     exchange = None
     try:
         exchange = await get_exchange(
@@ -40,5 +49,12 @@ async def _execute_order(payload: dict) -> dict:
 
 @celery_app.task(name="place_order")
 def place_order_task(payload: dict) -> dict:
-    """Celery task wrapper to run the async order coroutine."""
+    """Synchronously execute ``_execute_order`` inside a Celery worker.
+
+    Args:
+        payload: Same structure as expected by ``_execute_order``.
+
+    Returns:
+        dict: Order information returned from the exchange.
+    """
     return asyncio.run(_execute_order(payload))
