@@ -299,3 +299,84 @@ async def test_zero_price_rejected():
         response = await client.post("/webhook", json=payload)
         assert response.status_code == 422
 
+
+@pytest.mark.asyncio
+async def test_api_key_required(monkeypatch):
+    settings.REQUIRE_API_KEY = True
+    settings.STATIC_API_KEY = "testkey"
+
+    dummy_order = {"id": "order1"}
+
+    class DummyExchange:
+        async def load_markets(self):
+            return {}
+        async def create_market_order(self, symbol, side, amount):
+            return dummy_order
+        async def close(self):
+            pass
+
+    async def mock_get_exchange(*args, **kwargs):
+        return DummyExchange()
+
+    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+
+    token = issue_token(ttl=30)
+    payload = {
+        "token": token,
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000,
+    }
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload)
+        assert response.status_code == 401
+    revoke_token(token)
+    settings.REQUIRE_API_KEY = False
+    settings.STATIC_API_KEY = ""
+
+
+@pytest.mark.asyncio
+async def test_api_key_valid(monkeypatch):
+    settings.REQUIRE_API_KEY = True
+    settings.STATIC_API_KEY = "testkey"
+
+    dummy_order = {"id": "order1"}
+
+    class DummyExchange:
+        async def load_markets(self):
+            return {}
+        async def create_market_order(self, symbol, side, amount):
+            return dummy_order
+        async def close(self):
+            pass
+
+    async def mock_get_exchange(*args, **kwargs):
+        return DummyExchange()
+
+    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+
+    token = issue_token(ttl=30)
+    payload = {
+        "token": token,
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000,
+    }
+    headers = {"X-API-Key": "testkey"}
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload, headers=headers)
+        assert response.status_code == 200
+    revoke_token(token)
+    settings.REQUIRE_API_KEY = False
+    settings.STATIC_API_KEY = ""
+
