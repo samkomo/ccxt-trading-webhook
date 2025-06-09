@@ -59,6 +59,7 @@ DEFAULT_API_SECRET=your_exchange_api_secret
 LOG_LEVEL=INFO
 RATE_LIMIT=10/minute
 SIGNATURE_CACHE_TTL=300
+NONCE_TTL=300
 TOKEN_TTL=86400
 REQUIRE_HTTPS=false
 QUEUE_ORDERS=false
@@ -75,6 +76,7 @@ REQUIRE_API_KEY=false
 | `LOG_LEVEL`        | Logging verbosity |
 | `RATE_LIMIT`       | Requests allowed per timeframe |
 | `SIGNATURE_CACHE_TTL` | Cache TTL for replay-protection signatures |
+| `NONCE_TTL` | Expiration time for stored nonces (seconds) |
 | `TOKEN_TTL` | Expiration time for issued tokens (seconds) |
 | `REQUIRE_HTTPS` | Reject plain HTTP requests when set to `true` |
 | `QUEUE_ORDERS` | Enqueue orders to Celery when enabled |
@@ -139,9 +141,11 @@ Use this when custom headers can't be set (e.g., TradingView):
 ```json
 {
   "token": "issued_token_here",
+  "nonce": "unique_id",
   ...
 }
 ```
+Include a new random `nonce` value with each request to prevent replay attacks.
 
 **Issuing a Token**
 Generate and store a token with an optional TTL (defaults to `TOKEN_TTL`):
@@ -170,6 +174,7 @@ Expired tokens are automatically cleaned up during verification.
 ```json
 {
   "token": "issued_token_here",
+  "nonce": "unique_id",
   "exchange": "{{exchange}}",
   "apiKey": "your_api_key",
   "secret": "your_api_secret",
@@ -179,6 +184,7 @@ Expired tokens are automatically cleaned up during verification.
   "price": "{{close}}"
 }
 ```
+Make sure each alert uses a unique `nonce` value.
 
 **Common Variables**:
 

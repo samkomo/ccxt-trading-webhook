@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     RATE_LIMIT: str = "10/minute"
     SIGNATURE_CACHE_TTL: int = 300
+    NONCE_TTL: int = 300
     TOKEN_TTL: int = 86400
     REQUIRE_HTTPS: bool = False
     QUEUE_ORDERS: bool = False

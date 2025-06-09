@@ -15,24 +15,36 @@ from httpx import AsyncClient, ASGITransport
 import app.exchange_factory as exchange_factory
 import app.routes as routes
 from app.auth import verify_token
-from app.token_store import issue_token, revoke_token
+from app.token_store import issue_token, revoke_token, DB_PATH
+from app.rate_limiter import limiter
 
 transport = ASGITransport(app=app)
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limit():
+    limiter.reset()
+    if DB_PATH.exists():
+        DB_PATH.unlink()
+    yield
+    limiter.reset()
+    if DB_PATH.exists():
+        DB_PATH.unlink()
+
+
 def test_verify_token_valid():
     token = issue_token(ttl=5)
-    assert verify_token(token) is True
+    assert verify_token(token, "nA") is True
     revoke_token(token)
 
 
 def test_verify_token_invalid():
-    assert verify_token("bad_token") is False
+    assert verify_token("bad_token", "nB") is False
 
 
 def test_verify_token_expired():
     token = issue_token(ttl=-1)
-    assert verify_token(token) is False
+    assert verify_token(token, "nC") is False
 
 @pytest.mark.asyncio
 async def test_health_check():
@@ -65,6 +77,7 @@ async def test_missing_auth():
 async def test_invalid_token():
     payload = {
         "token": "wrong_token",
+        "nonce": "n1",
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -135,6 +148,7 @@ async def test_invalid_exchange_route():
     token = issue_token(ttl=30)
     payload = {
         "token": token,
+        "nonce": "nx1",
         "exchange": "nosuch",
         "apiKey": "key",
         "secret": "secret",
@@ -172,6 +186,7 @@ async def test_valid_token_order(monkeypatch):
     token = issue_token(ttl=30)
     payload = {
         "token": token,
+        "nonce": "nvalid1",
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -278,9 +293,51 @@ async def test_signature_reuse_rejected(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_nonce_reuse_rejected(monkeypatch):
+    dummy_order = {"id": "order1", "status": "filled"}
+
+    class DummyExchange:
+        async def load_markets(self):
+            return {"SOL/USDT": {"type": "future"}}
+
+        async def create_market_order(self, symbol, side, amount):
+            return dummy_order
+
+        async def close(self):
+            pass
+
+    async def mock_get_exchange(*args, **kwargs):
+        return DummyExchange()
+
+    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+
+    token = issue_token(ttl=30)
+    payload = {
+        "token": token,
+        "nonce": "replay1",
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000,
+    }
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        first = await client.post("/webhook", json=payload)
+        assert first.status_code == 200
+        second = await client.post("/webhook", json=payload)
+        assert second.status_code == 403
+    revoke_token(token)
+
+
+@pytest.mark.asyncio
 async def test_invalid_side_rejected():
     payload = {
         "token": settings.WEBHOOK_SECRET,
+        "nonce": "bad1",
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -298,6 +355,7 @@ async def test_invalid_side_rejected():
 async def test_invalid_symbol_rejected():
     payload = {
         "token": settings.WEBHOOK_SECRET,
+        "nonce": "bad2",
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -315,6 +373,7 @@ async def test_invalid_symbol_rejected():
 async def test_negative_amount_rejected():
     payload = {
         "token": settings.WEBHOOK_SECRET,
+        "nonce": "bad3",
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -332,6 +391,7 @@ async def test_negative_amount_rejected():
 async def test_zero_price_rejected():
     payload = {
         "token": settings.WEBHOOK_SECRET,
+        "nonce": "bad4",
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -369,6 +429,7 @@ async def test_api_key_required(monkeypatch):
     token = issue_token(ttl=30)
     payload = {
         "token": token,
+        "nonce": "api1",
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -409,6 +470,7 @@ async def test_api_key_valid(monkeypatch):
     token = issue_token(ttl=30)
     payload = {
         "token": token,
+        "nonce": "api2",
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
