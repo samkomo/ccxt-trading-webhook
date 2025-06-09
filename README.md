@@ -42,6 +42,7 @@ python3 -m venv venv
 source venv/bin/activate
 
 pip install -r requirements.txt
+cp .env.example .env
 ```
 
 ---
@@ -55,6 +56,7 @@ DEFAULT_API_KEY=your_exchange_api_key
 DEFAULT_API_SECRET=your_exchange_api_secret
 LOG_LEVEL=INFO
 RATE_LIMIT=10/minute
+SIGNATURE_CACHE_TTL=300
 ```
 
 | Variable           | Description |
@@ -65,6 +67,7 @@ RATE_LIMIT=10/minute
 | `DEFAULT_API_SECRET` | Optional fallback secret |
 | `LOG_LEVEL`        | Logging verbosity |
 | `RATE_LIMIT`       | Requests allowed per timeframe |
+| `SIGNATURE_CACHE_TTL` | Signature deduplication time in seconds |
 
 ---
 
