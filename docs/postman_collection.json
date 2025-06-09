@@ -1,0 +1,39 @@
+{
+  "info": {
+    "name": "CCXT Webhook",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Send Webhook",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Timestamp",
+            "value": "{{timestamp}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{signature}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"exchange\": \"binance\",\n  \"symbol\": \"BTC/USDT\",\n  \"side\": \"buy\",\n  \"amount\": 0.01,\n  \"price\": 30000\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/webhook",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["webhook"]
+        }
+      }
+    }
+  ]
+}
