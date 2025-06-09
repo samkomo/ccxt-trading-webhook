@@ -10,7 +10,7 @@
 - [x] Graceful error handling with FastAPI HTTP exceptions
 - [x] Close exchange connections (ccxt.async_support)
 - [x] Health check endpoint
-- [ ] Implement retry logic or circuit breaker pattern for exchange errors
+- [x] Implement retry logic or circuit breaker pattern for exchange errors
 
 ## ✅ Scalability
 - [x] Use FastAPI for async I/O
@@ -40,7 +40,7 @@
 
 ## 💥 Error Handling
 - [ ] Add unit tests for signature/timestamp failures
-- [ ] Handle specific CCXT exceptions with retry/circuit-breaker logic
+- [x] Handle specific CCXT exceptions with retry/circuit-breaker logic
 
 ## 🧪 Testing
 - [ ] Add full test coverage for webhook endpoint

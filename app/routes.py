@@ -5,11 +5,27 @@ from typing import Optional, Literal
 from pydantic import BaseModel, constr, confloat
 import logging
 from ccxt.base.errors import ExchangeError, NetworkError
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from app.rate_limiter import limiter
 from config.settings import settings
 
 router = APIRouter()
 logger = logging.getLogger("webhook_logger")
+
+
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=1, max=10),
+    retry=retry_if_exception_type((NetworkError, ExchangeError)),
+)
+async def place_market_order(exchange, symbol: str, side: str, amount: float):
+    """Place a market order with retry on network or exchange errors."""
+    return await exchange.create_market_order(
+        symbol=symbol,
+        side=side,
+        amount=amount,
+    )
 
 
 class WebhookPayload(BaseModel):
@@ -65,10 +81,11 @@ async def webhook(request: Request, payload: WebhookPayload):
         #     amount=payload.amount,
         #     price=payload.price
         # )
-        order = await exchange.create_market_order(
+        order = await place_market_order(
+            exchange,
             symbol=payload.symbol,
             side=payload.side,
-            amount=payload.amount
+            amount=payload.amount,
         )
 
         logger.info(f"Order placed: {order}")
