@@ -60,6 +60,8 @@ SIGNATURE_CACHE_TTL=300
 TOKEN_TTL=86400
 REQUIRE_HTTPS=false
 QUEUE_ORDERS=false
+STATIC_API_KEY=
+REQUIRE_API_KEY=false
 ```
 
 | Variable           | Description |
@@ -74,6 +76,8 @@ QUEUE_ORDERS=false
 | `TOKEN_TTL` | Expiration time for issued tokens (seconds) |
 | `REQUIRE_HTTPS` | Reject plain HTTP requests when set to `true` |
 | `QUEUE_ORDERS` | Enqueue orders to Celery when enabled |
+| `STATIC_API_KEY` | API key expected in the `X-API-Key` header |
+| `REQUIRE_API_KEY` | Enable static API key verification |
 
 ---
 
