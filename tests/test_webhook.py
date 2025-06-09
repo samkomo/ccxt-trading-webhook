@@ -1,5 +1,6 @@
 import sys
 import os
+import asyncio
 import pytest
 import time
 import json
@@ -7,6 +8,7 @@ import hmac
 import hashlib
 from fastapi import HTTPException
 from unittest.mock import MagicMock
+from ccxt.base.errors import ExchangeError, NetworkError
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -633,4 +635,111 @@ async def test_signature_invalid_overrides_token(monkeypatch):
         response = await client.post("/webhook", content=body, headers=headers)
         assert response.status_code == 403
     revoke_token(valid_token)
+
+
+@pytest.mark.asyncio
+async def test_place_market_order_retries(monkeypatch):
+    """Ensure network errors trigger retries before succeeding."""
+
+    attempts = 0
+
+    async def side_effect(symbol, side, amount):
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise NetworkError("temporary glitch")
+        return {"id": "retry", "status": "ok"}
+
+    class DummyExchange:
+        async def create_market_order(self, symbol, side, amount):
+            return await side_effect(symbol, side, amount)
+
+    async def no_sleep(_):
+        pass
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+
+    result = await routes.place_market_order(DummyExchange(), "BTC/USDT", "buy", 1)
+    assert result == {"id": "retry", "status": "ok"}
+    assert attempts == 3
+
+
+@pytest.mark.asyncio
+async def test_webhook_exchange_error(monkeypatch):
+    """Exchange errors should return HTTP 400."""
+
+    class DummyExchange:
+        async def load_markets(self):
+            return {}
+
+        async def create_market_order(self, symbol, side, amount):
+            raise ExchangeError("oops")
+
+        async def close(self):
+            pass
+
+    async def mock_get_exchange(*args, **kwargs):
+        return DummyExchange()
+
+    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+
+    token = issue_token(ttl=30)
+    payload = {
+        "token": token,
+        "nonce": "ex1",
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000,
+    }
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload)
+        assert response.status_code == 400
+        assert "Exchange error" in response.text
+    revoke_token(token)
+
+
+@pytest.mark.asyncio
+async def test_webhook_network_error(monkeypatch):
+    """Network errors should return HTTP 502."""
+
+    class DummyExchange:
+        async def load_markets(self):
+            return {}
+
+        async def create_market_order(self, symbol, side, amount):
+            raise NetworkError("timeout")
+
+        async def close(self):
+            pass
+
+    async def mock_get_exchange(*args, **kwargs):
+        return DummyExchange()
+
+    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+
+    token = issue_token(ttl=30)
+    payload = {
+        "token": token,
+        "nonce": "net1",
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000,
+    }
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload)
+        assert response.status_code == 502
+        assert "Network error" in response.text
+    revoke_token(token)
 
