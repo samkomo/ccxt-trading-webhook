@@ -35,7 +35,7 @@
 # 🧩 Project Backlog (To-Do List)
 
 ## 🔐 Security
-- [ ] Add optional API key authentication layer
+- [x] Add optional API key authentication layer
 - [ ] Consider token expiration and replay protection via nonce
 
 ## 💥 Error Handling

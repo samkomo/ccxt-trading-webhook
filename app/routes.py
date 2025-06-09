@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, Request, status
-from app.auth import verify_signature, verify_token
+from fastapi import APIRouter, HTTPException, Request, status, Depends
+from app.auth import verify_signature, verify_token, require_api_key
 from app.exchange_factory import get_exchange
 from typing import Optional, Literal
 from pydantic import BaseModel, constr, confloat
@@ -54,7 +54,7 @@ class WebhookPayload(BaseModel):
 
 @router.post("/webhook")
 @limiter.limit(settings.RATE_LIMIT)
-async def webhook(request: Request, payload: WebhookPayload):
+async def webhook(request: Request, payload: WebhookPayload, _: None = Depends(require_api_key)):
     """Handles webhook requests, enforcing HTTPS and verifying either an HMAC
     signature or token before executing the order."""
     if settings.REQUIRE_HTTPS and request.url.scheme != "https":
