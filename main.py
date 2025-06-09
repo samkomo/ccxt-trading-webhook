@@ -7,6 +7,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from app.session_pool import close_all_sessions
+from app.metrics import MetricsMiddleware, metrics
 
 app = FastAPI()
 setup_logger()
@@ -14,6 +15,7 @@ setup_logger()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(MetricsMiddleware)
 
 app.include_router(webhook_router)
 
@@ -25,3 +27,8 @@ async def _close_sessions() -> None:
 @app.get("/")
 async def health_check():
     return {"status": "running", "message": "Webhook server ready"}
+
+
+@app.get("/metrics")
+async def metrics_endpoint():
+    return metrics()

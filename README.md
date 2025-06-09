@@ -33,6 +33,8 @@ This project is a production-grade, asynchronous webhook server built with **Fas
 
 Caching the exchange sessions avoids repeated `load_markets` calls, reducing
 order latency by roughly **500ms** per request during testing.
+- 📑 **JSON structured logging** for easy ingestion
+- 📊 **Prometheus metrics** available at `/metrics`
 
 ---
 
@@ -63,6 +65,9 @@ RATE_LIMIT=10/minute
 SIGNATURE_CACHE_TTL=300
 TOKEN_TTL=86400
 REQUIRE_HTTPS=false
+QUEUE_ORDERS=false
+STATIC_API_KEY=
+REQUIRE_API_KEY=false
 ```
 
 | Variable           | Description |
@@ -76,6 +81,11 @@ REQUIRE_HTTPS=false
 | `SIGNATURE_CACHE_TTL` | Cache TTL for replay-protection signatures |
 | `TOKEN_TTL` | Expiration time for issued tokens (seconds) |
 | `REQUIRE_HTTPS` | Reject plain HTTP requests when set to `true` |
+| `QUEUE_ORDERS` | Enqueue orders to Celery when enabled |
+| `STATIC_API_KEY` | API key expected in the `X-API-Key` header |
+| `REQUIRE_API_KEY` | Enable static API key verification |
+
+Logs are emitted in JSON format for easier ingestion into log platforms.
 
 ---
 
@@ -89,6 +99,12 @@ Test the health endpoint:
 
 ```bash
 curl http://127.0.0.1:8000/
+```
+
+Expose metrics:
+
+```bash
+curl http://127.0.0.1:8000/metrics
 ```
 
 Simulate an alert:
