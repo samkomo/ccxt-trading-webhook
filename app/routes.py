@@ -49,7 +49,7 @@ async def webhook(request: Request, payload: WebhookPayload):
     try:
         exchange = await get_exchange(payload.exchange, payload.apiKey, payload.secret)
         markets = await exchange.load_markets()
-        print(markets['SOL/USDT'])  # should show type: 'future'
+        logger.debug(markets.get(payload.symbol))
 
         # order = await exchange.create_limit_order(
         #     symbol=payload.symbol,
