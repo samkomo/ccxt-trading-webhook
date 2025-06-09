@@ -6,6 +6,7 @@ import json
 import hmac
 import hashlib
 from fastapi import HTTPException
+from unittest.mock import MagicMock
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -486,4 +487,35 @@ async def test_api_key_valid(monkeypatch):
     revoke_token(token)
     settings.REQUIRE_API_KEY = False
     settings.STATIC_API_KEY = ""
+
+
+@pytest.mark.asyncio
+async def test_webhook_queue(monkeypatch):
+    """Ensure orders are queued when QUEUE_ORDERS is enabled."""
+    settings.QUEUE_ORDERS = True
+
+    mock_task = MagicMock()
+    monkeypatch.setattr(routes, "place_order_task", mock_task)
+
+    token = issue_token(ttl=30)
+    payload = {
+        "token": token,
+        "nonce": "q1",
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000,
+    }
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload)
+        assert response.status_code == 200
+        assert response.json() == {"status": "queued"}
+
+    mock_task.delay.assert_called_once_with(payload)
+    revoke_token(token)
+    settings.QUEUE_ORDERS = False
 
