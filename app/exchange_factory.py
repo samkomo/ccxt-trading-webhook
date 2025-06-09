@@ -29,13 +29,13 @@ async def get_exchange(
     """
     exchange_id = exchange_id.lower()  # 🛠 Normalize input
 
-    try:
-        exchange_class = getattr(ccxt, exchange_id)
-    except AttributeError:
+    if exchange_id not in ccxt.exchanges:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Exchange '{exchange_id}' is not supported by CCXT."
         )
+
+    exchange_class = getattr(ccxt, exchange_id)
 
     api_key = api_key or settings.DEFAULT_API_KEY
     secret = secret or settings.DEFAULT_API_SECRET

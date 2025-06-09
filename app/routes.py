@@ -81,6 +81,9 @@ async def webhook(request: Request, payload: WebhookPayload):
         logger.warning(f"Validation error: {ve}")
         raise HTTPException(status_code=422, detail=str(ve))
 
+    except HTTPException as http_exc:
+        raise http_exc
+
     except Exception as e:
         logger.exception("Unhandled server error")
         raise HTTPException(status_code=500, detail="Internal server error")
