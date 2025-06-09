@@ -75,7 +75,7 @@ def verify_token(token: Optional[str]) -> bool:
     if token is None:
         logger.warning("Missing token in fallback mode")
         return False
-    if token != settings.WEBHOOK_SECRET:
+    if not hmac.compare_digest(token, settings.WEBHOOK_SECRET):
         logger.warning("Invalid token in fallback mode")
         return False
     return True
