@@ -52,8 +52,8 @@
 - [ ] Integrate with a monitoring platform (Heroku Metrics or external)
 
 ## 🔁 Background Jobs (Advanced)
-- [ ] Add support for background task queue (e.g., Celery)
-- [ ] Async enqueue-to-worker architecture for non-blocking execution
+- [x] Add support for background task queue (e.g., Celery)
+- [x] Async enqueue-to-worker architecture for non-blocking execution
 
 ## 📄 Documentation
 - [ ] Add inline docstrings for all utility and route functions

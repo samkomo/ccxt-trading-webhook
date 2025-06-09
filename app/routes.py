@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request, status, Depends
 from app.auth import verify_signature, verify_token, require_api_key
 from app.exchange_factory import get_exchange
+from app.tasks import place_order_task
 from typing import Optional, Literal
 from pydantic import BaseModel, constr, confloat
 import logging
@@ -69,20 +70,18 @@ async def webhook(request: Request, payload: WebhookPayload, _: None = Depends(r
             logger.warning("Missing or invalid token in fallback mode")
             raise HTTPException(status_code=403, detail="Unauthorized")
 
+    if settings.QUEUE_ORDERS:
+        place_order_task.delay(payload.model_dump())
+        logger.info("Order enqueued for async execution")
+        return {"status": "queued"}
+
     exchange = None
     try:
         exchange = await get_exchange(payload.exchange, payload.apiKey, payload.secret)
         markets = await exchange.load_markets()
         logger.debug(markets.get(payload.symbol))
 
-        # order = await exchange.create_limit_order(
-        #     symbol=payload.symbol,
-        #     side=payload.side,
-        #     amount=payload.amount,
-        #     price=payload.price
-        # )
-        order = await place_market_order(
-            exchange,
+        order = await exchange.create_market_order(
             symbol=payload.symbol,
             side=payload.side,
             amount=payload.amount,
