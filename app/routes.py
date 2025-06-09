@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request, status
 from app.auth import verify_signature, verify_token
 from app.exchange_factory import get_exchange
-from typing import Optional
-from pydantic import BaseModel
+from typing import Optional, Literal
+from pydantic import BaseModel, constr, confloat
 import logging
 from ccxt.base.errors import ExchangeError, NetworkError
 from app.rate_limiter import limiter
@@ -20,19 +20,19 @@ class WebhookPayload(BaseModel):
         exchange (str): The exchange ID (e.g., 'binance').
         apiKey (str): API key for the exchange.
         secret (str): API secret for the exchange.
-        symbol (str): Trading pair symbol (e.g., 'BTC/USDT').
-        side (str): 'buy' or 'sell'.
-        amount (float): Amount of asset to buy/sell.
-        price (float): Limit price for the order.
+        symbol (str): Trading pair symbol matching ``^[A-Z0-9]+/[A-Z0-9]+$``.
+        side (Literal["buy", "sell"]): Order side.
+        amount (float): Amount of asset to buy/sell (> 0).
+        price (float): Limit price for the order (> 0).
         token (Optional[str]): Fallback auth token (for unsigned clients like TradingView).
     """
     exchange: str
     apiKey: str
     secret: str
-    symbol: str
-    side: str
-    amount: float
-    price: float
+    symbol: constr(pattern="^[A-Z0-9]+/[A-Z0-9]+$")
+    side: Literal["buy", "sell"]
+    amount: confloat(gt=0)
+    price: confloat(gt=0)
     token: Optional[str] = None
 
 

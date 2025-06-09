@@ -195,3 +195,71 @@ async def test_signature_reuse_rejected(monkeypatch):
         second = await client.post("/webhook", content=body, headers=headers)
         assert second.status_code == 403
 
+
+@pytest.mark.asyncio
+async def test_invalid_side_rejected():
+    payload = {
+        "token": settings.WEBHOOK_SECRET,
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "hold",
+        "amount": 0.01,
+        "price": 30000,
+    }
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload)
+        assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_invalid_symbol_rejected():
+    payload = {
+        "token": settings.WEBHOOK_SECRET,
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTCUSDT",  # missing slash
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000,
+    }
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload)
+        assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_negative_amount_rejected():
+    payload = {
+        "token": settings.WEBHOOK_SECRET,
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": -1,
+        "price": 30000,
+    }
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload)
+        assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_zero_price_rejected():
+    payload = {
+        "token": settings.WEBHOOK_SECRET,
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 0,
+    }
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload)
+        assert response.status_code == 422
+
