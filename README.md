@@ -59,6 +59,7 @@ RATE_LIMIT=10/minute
 SIGNATURE_CACHE_TTL=300
 TOKEN_TTL=86400
 REQUIRE_HTTPS=false
+QUEUE_ORDERS=false
 ```
 
 | Variable           | Description |
@@ -72,6 +73,7 @@ REQUIRE_HTTPS=false
 | `SIGNATURE_CACHE_TTL` | Cache TTL for replay-protection signatures |
 | `TOKEN_TTL` | Expiration time for issued tokens (seconds) |
 | `REQUIRE_HTTPS` | Reject plain HTTP requests when set to `true` |
+| `QUEUE_ORDERS` | Enqueue orders to Celery when enabled |
 
 ---
 

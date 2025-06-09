@@ -19,6 +19,7 @@ class Settings(BaseSettings):
             replay protection.
         TOKEN_TTL (int): Seconds before issued tokens expire.
         REQUIRE_HTTPS (bool): Reject non-HTTPS requests when True.
+        QUEUE_ORDERS (bool): Enqueue orders to Celery when True.
     """
     WEBHOOK_SECRET: str
     DEFAULT_EXCHANGE: str
@@ -29,6 +30,7 @@ class Settings(BaseSettings):
     SIGNATURE_CACHE_TTL: int = 300
     TOKEN_TTL: int = 86400
     REQUIRE_HTTPS: bool = False
+    QUEUE_ORDERS: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
