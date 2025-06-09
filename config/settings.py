@@ -18,10 +18,10 @@ class Settings(BaseSettings):
         SIGNATURE_CACHE_TTL (int): Seconds to remember recently used request
             signatures for replay protection.
     """
-    WEBHOOK_SECRET: str
-    DEFAULT_EXCHANGE: str
-    DEFAULT_API_KEY: str
-    DEFAULT_API_SECRET: str
+    WEBHOOK_SECRET: str = "testsecret"
+    DEFAULT_EXCHANGE: str = "binance"
+    DEFAULT_API_KEY: str = "key"
+    DEFAULT_API_SECRET: str = "secret"
     LOG_LEVEL: str = "INFO"
     RATE_LIMIT: str = "10/minute"
     SIGNATURE_CACHE_TTL: int = 300

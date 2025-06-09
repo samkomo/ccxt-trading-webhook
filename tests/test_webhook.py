@@ -12,8 +12,8 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from main import app
 from config.settings import settings
 from httpx import AsyncClient, ASGITransport
-import app.exchange_factory
-import app.routes
+import app.exchange_factory as exchange_factory
+import app.routes as routes
 
 transport = ASGITransport(app=app)
 
@@ -123,8 +123,8 @@ async def test_valid_token_order(monkeypatch):
     async def mock_get_exchange(*args, **kwargs):
         return DummyExchange()
 
-    monkeypatch.setattr(app.exchange_factory, "get_exchange", mock_get_exchange)
-    monkeypatch.setattr(app.routes, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
 
     payload = {
         "token": settings.WEBHOOK_SECRET,
@@ -159,8 +159,8 @@ async def test_duplicate_signature(monkeypatch):
     async def mock_get_exchange(*args, **kwargs):
         return DummyExchange()
 
-    monkeypatch.setattr(app.exchange_factory, "get_exchange", mock_get_exchange)
-    monkeypatch.setattr(app.routes, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
 
     payload = {
         "exchange": "binance",
