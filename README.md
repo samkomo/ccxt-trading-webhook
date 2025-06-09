@@ -67,7 +67,7 @@ SIGNATURE_CACHE_TTL=300
 | `DEFAULT_API_SECRET` | Optional fallback secret |
 | `LOG_LEVEL`        | Logging verbosity |
 | `RATE_LIMIT`       | Requests allowed per timeframe |
-| `SIGNATURE_CACHE_TTL` | Signature deduplication time in seconds |
+| `SIGNATURE_CACHE_TTL` | Cache TTL for replay-protection signatures |
 
 ---
 
