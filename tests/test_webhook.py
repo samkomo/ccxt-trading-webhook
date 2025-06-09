@@ -149,3 +149,48 @@ async def test_valid_token_order(monkeypatch):
         response = await client.post("/webhook", json=payload)
         assert response.status_code == 200
         assert response.json()["order"] == dummy_order
+
+
+@pytest.mark.asyncio
+async def test_duplicate_signature(monkeypatch):
+    dummy_order = {"id": "order1", "status": "filled"}
+
+    class DummyExchange:
+        async def load_markets(self):
+            return {"BTC/USDT": {"type": "spot"}}
+
+        async def create_market_order(self, symbol, side, amount):
+            return dummy_order
+
+        async def close(self):
+            pass
+
+    async def mock_get_exchange(*args, **kwargs):
+        return DummyExchange()
+
+    monkeypatch.setattr(app.exchange_factory, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(app.routes, "get_exchange", mock_get_exchange)
+
+    payload = {
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000,
+    }
+    timestamp = str(int(time.time()))
+    body = json.dumps(payload).encode()
+    signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
+    headers = {
+        "X-Signature": signature,
+        "X-Timestamp": timestamp,
+        "Content-Type": "application/json",
+    }
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        first = await client.post("/webhook", content=body, headers=headers)
+        assert first.status_code == 200
+        second = await client.post("/webhook", content=body, headers=headers)
+        assert second.status_code == 403

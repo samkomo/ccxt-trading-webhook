@@ -13,12 +13,22 @@ import time
 from fastapi import Request
 from config.settings import settings
 import logging
-from typing import Optional
+from typing import Optional, Dict
 
 logger = logging.getLogger("webhook_logger")
 
 # Acceptable clock drift range in seconds
 MAX_TIMESTAMP_AGE = 300  # 5 minutes
+
+# Cache of recently seen request signatures for replay protection
+signature_cache: Dict[str, int] = {}
+
+def cleanup_signature_cache() -> None:
+    """Remove expired entries from the signature cache."""
+    now = int(time.time())
+    expired = [sig for sig, expiry in signature_cache.items() if expiry <= now]
+    for sig in expired:
+        del signature_cache[sig]
 
 async def verify_signature(request: Request) -> bool:
     """
@@ -42,6 +52,11 @@ async def verify_signature(request: Request) -> bool:
             logger.warning(f"Expired timestamp: {timestamp_header}")
             return False
 
+        cleanup_signature_cache()
+        if signature_header in signature_cache:
+            logger.warning("Signature reuse detected")
+            return False
+
         # Generate expected signature from raw request body
         body = await request.body()
         expected_signature = hmac.new(
@@ -53,6 +68,9 @@ async def verify_signature(request: Request) -> bool:
         if not hmac.compare_digest(expected_signature, signature_header):
             logger.warning("Signature mismatch")
             return False
+
+        # Cache the signature to prevent replay attacks
+        signature_cache[signature_header] = current_time + settings.SIGNATURE_CACHE_TTL
 
         return True
     except ValueError:
