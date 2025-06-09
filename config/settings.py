@@ -14,12 +14,14 @@ class Settings(BaseSettings):
         DEFAULT_API_KEY (str): Fallback API key if not provided in payload.
         DEFAULT_API_SECRET (str): Fallback API secret.
         LOG_LEVEL (str): Logging verbosity (DEBUG, INFO, etc.).
+        RATE_LIMIT (str): Requests allowed per time window (e.g., "10/minute").
     """
     WEBHOOK_SECRET: str
     DEFAULT_EXCHANGE: str
     DEFAULT_API_KEY: str
     DEFAULT_API_SECRET: str
     LOG_LEVEL: str = "INFO"
+    RATE_LIMIT: str = "10/minute"
 
     model_config = SettingsConfigDict(
         env_file=".env",

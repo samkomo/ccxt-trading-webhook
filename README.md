@@ -28,6 +28,7 @@ This project is a production-grade, asynchronous webhook server built with **Fas
 - 📡 **TradingView-compatible**
 - 🧪 **Full async test suite** with `pytest-asyncio` and mocking
 - ☁️ **Heroku deployment ready**
+- 🚦 **Per-IP rate limiting** via `slowapi`
 
 ---
 
@@ -53,6 +54,7 @@ DEFAULT_EXCHANGE=binance
 DEFAULT_API_KEY=your_exchange_api_key
 DEFAULT_API_SECRET=your_exchange_api_secret
 LOG_LEVEL=INFO
+RATE_LIMIT=10/minute
 ```
 
 | Variable           | Description |
@@ -62,6 +64,7 @@ LOG_LEVEL=INFO
 | `DEFAULT_API_KEY`  | Optional fallback key |
 | `DEFAULT_API_SECRET` | Optional fallback secret |
 | `LOG_LEVEL`        | Logging verbosity |
+| `RATE_LIMIT`       | Requests allowed per timeframe |
 
 ---
 
