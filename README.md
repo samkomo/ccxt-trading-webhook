@@ -29,6 +29,11 @@ This project is a production-grade, asynchronous webhook server built with **Fas
 - 🧪 **Full async test suite** with `pytest-asyncio` and mocking
 - ☁️ **Heroku deployment ready**
 - 🚦 **Per-IP rate limiting** via `slowapi`
+- ♻️ **Persistent CCXT sessions** reused across requests
+
+Exchange connections are cached per API key and cleaned up when the
+application shuts down. This avoids the overhead of creating a new CCXT
+client on every webhook call.
 
 ---
 

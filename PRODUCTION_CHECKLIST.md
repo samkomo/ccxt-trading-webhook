@@ -9,6 +9,7 @@
 ## ✅ Reliability
 - [x] Graceful error handling with FastAPI HTTP exceptions
 - [x] Close exchange connections (ccxt.async_support)
+- [x] Reuse CCXT sessions across requests
 - [x] Health check endpoint
 - [ ] Implement retry logic or circuit breaker pattern for exchange errors
 

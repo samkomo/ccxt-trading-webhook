@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, status
 from app.auth import verify_signature, verify_token
-from app.exchange_factory import get_exchange
+from app.session_pool import get_persistent_exchange
 from typing import Optional
 from pydantic import BaseModel
 import logging
@@ -51,9 +51,10 @@ async def webhook(request: Request, payload: WebhookPayload):
             logger.warning("Missing or invalid token in fallback mode")
             raise HTTPException(status_code=403, detail="Unauthorized")
 
-    exchange = None
     try:
-        exchange = await get_exchange(payload.exchange, payload.apiKey, payload.secret)
+        exchange = await get_persistent_exchange(
+            payload.exchange, payload.apiKey, payload.secret
+        )
         markets = await exchange.load_markets()
         logger.debug(markets.get(payload.symbol))
 
@@ -90,7 +91,3 @@ async def webhook(request: Request, payload: WebhookPayload):
     except Exception as e:
         logger.exception("Unhandled server error")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-    finally:
-        if exchange:
-            await exchange.close()

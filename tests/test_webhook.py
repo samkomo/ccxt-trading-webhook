@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from main import app
 from config.settings import settings
 from httpx import AsyncClient, ASGITransport
-import app.exchange_factory as exchange_factory
+import app.session_pool as session_pool
 import app.routes as routes
 from app.auth import verify_token
 from app.token_store import issue_token, revoke_token
@@ -126,7 +126,7 @@ async def test_invalid_signature():
 @pytest.mark.asyncio
 async def test_get_exchange_invalid_id():
     with pytest.raises(HTTPException) as exc:
-        await exchange_factory.get_exchange("nosuch", "k", "s")
+        await session_pool.get_persistent_exchange("nosuch", "k", "s")
     assert exc.value.status_code == 400
 
 
@@ -166,8 +166,8 @@ async def test_valid_token_order(monkeypatch):
     async def mock_get_exchange(*args, **kwargs):
         return DummyExchange()
 
-    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
-    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(session_pool, "get_persistent_exchange", mock_get_exchange)
+    monkeypatch.setattr(routes, "get_persistent_exchange", mock_get_exchange)
 
     token = issue_token(ttl=30)
     payload = {
@@ -204,8 +204,8 @@ async def test_signature_reuse_rejected(monkeypatch):
     async def mock_get_exchange(*args, **kwargs):
         return DummyExchange()
 
-    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
-    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(session_pool, "get_persistent_exchange", mock_get_exchange)
+    monkeypatch.setattr(routes, "get_persistent_exchange", mock_get_exchange)
 
     payload = {
         "exchange": "binance",
