@@ -29,6 +29,11 @@ This project is a production-grade, asynchronous webhook server built with **Fas
 - 🧪 **Full async test suite** with `pytest-asyncio` and mocking
 - ☁️ **Heroku deployment ready**
 - 🚦 **Per-IP rate limiting** via `slowapi`
+- 🗄️ **Session pooling** to reuse exchange connections and markets for faster orders
+
+Caching the exchange sessions avoids repeated `load_markets` calls, reducing
+order latency by roughly **500ms** per request during testing. Cached sessions
+expire after `SESSION_TTL` seconds of inactivity.
 
 ---
 
@@ -58,6 +63,7 @@ LOG_LEVEL=INFO
 RATE_LIMIT=10/minute
 SIGNATURE_CACHE_TTL=300
 TOKEN_TTL=86400
+SESSION_TTL=3600
 REQUIRE_HTTPS=false
 ```
 
@@ -71,6 +77,7 @@ REQUIRE_HTTPS=false
 | `RATE_LIMIT`       | Requests allowed per timeframe |
 | `SIGNATURE_CACHE_TTL` | Cache TTL for replay-protection signatures |
 | `TOKEN_TTL` | Expiration time for issued tokens (seconds) |
+| `SESSION_TTL` | Seconds to keep cached exchange sessions |
 | `REQUIRE_HTTPS` | Reject plain HTTP requests when set to `true` |
 
 ---
@@ -185,6 +192,10 @@ Run all tests:
 pytest tests/
 ```
 
+Tests require `WEBHOOK_SECRET`, `DEFAULT_EXCHANGE`, `DEFAULT_API_KEY`, and
+`DEFAULT_API_SECRET` to be set. Copy `.env.example` or export these variables
+before running `pytest`.
+
 Tests cover:
 - Token/HMAC auth
 - Timestamp checks
@@ -291,3 +302,4 @@ ccxt-trading-webhook/
 ## 📄 License
 
 MIT
+

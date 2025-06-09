@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     RATE_LIMIT: str = "10/minute"
     SIGNATURE_CACHE_TTL: int = 300
     TOKEN_TTL: int = 86400
+    SESSION_TTL: int = 3600
     REQUIRE_HTTPS: bool = False
 
     model_config = SettingsConfigDict(
