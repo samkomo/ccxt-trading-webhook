@@ -55,6 +55,7 @@ DEFAULT_API_KEY=your_exchange_api_key
 DEFAULT_API_SECRET=your_exchange_api_secret
 LOG_LEVEL=INFO
 RATE_LIMIT=10/minute
+SIGNATURE_CACHE_TTL=300
 ```
 
 | Variable           | Description |
@@ -65,6 +66,7 @@ RATE_LIMIT=10/minute
 | `DEFAULT_API_SECRET` | Optional fallback secret |
 | `LOG_LEVEL`        | Logging verbosity |
 | `RATE_LIMIT`       | Requests allowed per timeframe |
+| `SIGNATURE_CACHE_TTL` | Seconds to remember used signatures |
 
 ---
 
@@ -170,6 +172,14 @@ Run all tests:
 
 ```bash
 pytest tests/
+```
+
+Default configuration values are provided, so running tests does not require
+setting any environment variables. Ensure dependencies are installed:
+
+```bash
+pip install -r requirements.txt
+pytest -q
 ```
 
 Tests cover:
