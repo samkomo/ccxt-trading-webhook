@@ -57,6 +57,9 @@ DEFAULT_API_SECRET=your_exchange_api_secret
 LOG_LEVEL=INFO
 RATE_LIMIT=10/minute
 SIGNATURE_CACHE_TTL=300
+SIGNATURE_CACHE_BACKEND=memory
+# SIGNATURE_CACHE_BACKEND can be 'redis'. If so, set REDIS_URL
+REDIS_URL=redis://localhost:6379/0
 ```
 
 | Variable           | Description |
@@ -68,6 +71,15 @@ SIGNATURE_CACHE_TTL=300
 | `LOG_LEVEL`        | Logging verbosity |
 | `RATE_LIMIT`       | Requests allowed per timeframe |
 | `SIGNATURE_CACHE_TTL` | Cache TTL for replay-protection signatures |
+| `SIGNATURE_CACHE_BACKEND` | `memory` or `redis` |
+| `REDIS_URL` | Redis connection URL if using redis backend |
+
+### ♻️ Signature Cache Options
+
+The default in-memory cache only protects a single running process. When the
+application restarts or you run multiple workers, signatures won't be shared.
+For production deployments set `SIGNATURE_CACHE_BACKEND=redis` and provide
+`REDIS_URL` so all instances use the same cache.
 
 ---
 
