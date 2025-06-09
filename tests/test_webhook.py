@@ -47,6 +47,16 @@ def test_verify_token_expired():
     token = issue_token(ttl=-1)
     assert verify_token(token, "nC") is False
 
+
+def test_verify_token_missing_fields():
+    """Token verification should fail if token or nonce is missing."""
+    valid_token = issue_token(ttl=5)
+    try:
+        assert verify_token(None, "nD") is False
+        assert verify_token(valid_token, None) is False
+    finally:
+        revoke_token(valid_token)
+
 @pytest.mark.asyncio
 async def test_health_check():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -518,4 +528,109 @@ async def test_webhook_queue(monkeypatch):
     mock_task.delay.assert_called_once_with(payload)
     revoke_token(token)
     settings.QUEUE_ORDERS = False
+
+
+@pytest.mark.asyncio
+async def test_metrics_endpoint():
+    """Ensure the metrics endpoint returns Prometheus metrics."""
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/metrics")
+        assert response.status_code == 200
+        assert "request_latency_seconds" in response.text
+
+
+@pytest.mark.asyncio
+async def test_signature_valid_token_ignored(monkeypatch):
+    """A valid HMAC signature should succeed even with an invalid token."""
+
+    dummy_order = {"id": "order1", "status": "ok"}
+
+    class DummyExchange:
+        async def load_markets(self):
+            return {}
+
+        async def create_market_order(self, symbol, side, amount):
+            return dummy_order
+
+        async def close(self):
+            pass
+
+    async def mock_get_exchange(*args, **kwargs):
+        return DummyExchange()
+
+    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+
+    payload = {
+        "token": "bad",  # invalid token should be ignored
+        "nonce": "sig1",
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000,
+    }
+    body = json.dumps(payload).encode()
+    timestamp = str(int(time.time()))
+    signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
+    headers = {
+        "X-Signature": signature,
+        "X-Timestamp": timestamp,
+        "Content-Type": "application/json",
+    }
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", content=body, headers=headers)
+        assert response.status_code == 200
+        assert response.json()["order"] == dummy_order
+
+
+@pytest.mark.asyncio
+async def test_signature_invalid_overrides_token(monkeypatch):
+    """If a signature header is present, token auth is ignored."""
+
+    dummy_order = {"id": "order1", "status": "ok"}
+
+    class DummyExchange:
+        async def load_markets(self):
+            return {}
+
+        async def create_market_order(self, symbol, side, amount):
+            return dummy_order
+
+        async def close(self):
+            pass
+
+    async def mock_get_exchange(*args, **kwargs):
+        return DummyExchange()
+
+    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+
+    valid_token = issue_token(ttl=30)
+    payload = {
+        "token": valid_token,
+        "nonce": "sig2",
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000,
+    }
+    body = json.dumps(payload).encode()
+    timestamp = str(int(time.time()))
+    headers = {
+        "X-Signature": "badsignature",
+        "X-Timestamp": timestamp,
+        "Content-Type": "application/json",
+    }
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", content=body, headers=headers)
+        assert response.status_code == 403
+    revoke_token(valid_token)
 
