@@ -219,13 +219,10 @@ ccxt-trading-webhook/
 │   ├── routes.py
 │   ├── exchange_factory.py
 │   ├── utils.py
-│   ├── mocks.py
 ├── config/settings.py
 ├── tests/test_webhook.py
 ├── simulate_tradingview.py
 ├── main.py
-├── .env
-├── .env.example
 ├── Procfile
 ├── requirements.txt
 ├── runtime.txt
