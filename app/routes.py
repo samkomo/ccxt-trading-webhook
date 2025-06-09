@@ -1,15 +1,34 @@
-from fastapi import APIRouter, HTTPException, Request, status
-from app.auth import verify_signature, verify_token
+
+from fastapi import APIRouter, HTTPException, Request, status, Depends
+from app.auth import verify_signature, verify_token, require_api_key
 from app.session_pool import get_session
+from app.exchange_factory import get_exchange
+from app.tasks import place_order_task
 from typing import Optional, Literal
 from pydantic import BaseModel, constr, confloat
 import logging
 from ccxt.base.errors import ExchangeError, NetworkError
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from app.rate_limiter import limiter
 from config.settings import settings
 
 router = APIRouter()
 logger = logging.getLogger("webhook_logger")
+
+
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=1, max=10),
+    retry=retry_if_exception_type((NetworkError, ExchangeError)),
+)
+async def place_market_order(exchange, symbol: str, side: str, amount: float):
+    """Place a market order with retry on network or exchange errors."""
+    return await exchange.create_market_order(
+        symbol=symbol,
+        side=side,
+        amount=amount,
+    )
 
 
 class WebhookPayload(BaseModel):
@@ -38,7 +57,7 @@ class WebhookPayload(BaseModel):
 
 @router.post("/webhook")
 @limiter.limit(settings.RATE_LIMIT)
-async def webhook(request: Request, payload: WebhookPayload):
+async def webhook(request: Request, payload: WebhookPayload, _: None = Depends(require_api_key)):
     """Handles webhook requests, enforcing HTTPS and verifying either an HMAC
     signature or token before executing the order."""
     if settings.REQUIRE_HTTPS and request.url.scheme != "https":
@@ -53,6 +72,11 @@ async def webhook(request: Request, payload: WebhookPayload):
             logger.warning("Missing or invalid token in fallback mode")
             raise HTTPException(status_code=403, detail="Unauthorized")
 
+    if settings.QUEUE_ORDERS:
+        place_order_task.delay(payload.model_dump())
+        logger.info("Order enqueued for async execution")
+        return {"status": "queued"}
+
     exchange = None
     markets = None
     try:
@@ -61,16 +85,10 @@ async def webhook(request: Request, payload: WebhookPayload):
         )
         logger.debug(markets.get(payload.symbol))
 
-        # order = await exchange.create_limit_order(
-        #     symbol=payload.symbol,
-        #     side=payload.side,
-        #     amount=payload.amount,
-        #     price=payload.price
-        # )
         order = await exchange.create_market_order(
             symbol=payload.symbol,
             side=payload.side,
-            amount=payload.amount
+            amount=payload.amount,
         )
 
         logger.info(f"Order placed: {order}")

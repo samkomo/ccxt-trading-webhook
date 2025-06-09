@@ -17,3 +17,4 @@ All notable changes to this project will be documented in this file.
 - `simulate_tradingview.py` for end-to-end simulation
 - Heroku deployment config: `Procfile`, `runtime.txt`
 - Complete `README.md` with setup, usage, and deployment docs
+
