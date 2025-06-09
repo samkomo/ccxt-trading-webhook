@@ -15,7 +15,7 @@
 ## ✅ Scalability
 - [x] Use FastAPI for async I/O
 - [x] Use ccxt.async_support for non-blocking order placement
-- [ ] Support background queueing (Celery, RQ) for high-latency orders (future)
+ - [x] Support background queueing (Celery, RQ) for high-latency orders (future)
 
 ## ✅ Maintainability
 - [x] Modular structure (routes, auth, exchange, config, utils)
@@ -36,7 +36,7 @@
 
 ## 🔐 Security
 - [x] Add optional API key authentication layer
-- [ ] Consider token expiration and replay protection via nonce
+ - [x] Consider token expiration and replay protection via nonce
 
 ## 💥 Error Handling
 - [x] Add unit tests for signature/timestamp failures
@@ -45,7 +45,7 @@
 ## 🧪 Testing
 - [ ] Add full test coverage for webhook endpoint
 - [x] Mock CCXT responses in unit tests
-- [ ] Test token mode and HMAC mode separately
+ - [x] Test token mode and HMAC mode separately
 
 ## 📊 Logging & Monitoring
  - [x] Add structured log output for DataDog/ELK compatibility
@@ -61,4 +61,4 @@
 ## 📄 Documentation
 - [ ] Add inline docstrings for all utility and route functions
  - [x] Generate OpenAPI schema and add `/docs` link in README
- - [ ] Include Postman collection for webhook usage
+ - [x] Include Postman collection for webhook usage
