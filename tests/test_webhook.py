@@ -166,8 +166,14 @@ async def test_valid_token_order(monkeypatch):
     async def mock_get_exchange(*args, **kwargs):
         return DummyExchange()
 
-    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
-    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+    async def mock_get_persistent_exchange(*args, **kwargs):
+        return DummyExchange()
+
+    def mock_get_market(exchange_id, symbol):
+        return {"symbol": symbol}
+
+    monkeypatch.setattr(routes, "get_persistent_exchange", mock_get_persistent_exchange)
+    monkeypatch.setattr(routes, "get_market", mock_get_market)
 
     token = issue_token(ttl=30)
     payload = {
@@ -204,8 +210,14 @@ async def test_signature_reuse_rejected(monkeypatch):
     async def mock_get_exchange(*args, **kwargs):
         return DummyExchange()
 
-    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
-    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+    async def mock_get_persistent_exchange(*args, **kwargs):
+        return DummyExchange()
+
+    def mock_get_market(exchange_id, symbol):
+        return {"symbol": symbol}
+
+    monkeypatch.setattr(routes, "get_persistent_exchange", mock_get_persistent_exchange)
+    monkeypatch.setattr(routes, "get_market", mock_get_market)
 
     payload = {
         "exchange": "binance",

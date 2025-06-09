@@ -29,6 +29,7 @@ This project is a production-grade, asynchronous webhook server built with **Fas
 - 🧪 **Full async test suite** with `pytest-asyncio` and mocking
 - ☁️ **Heroku deployment ready**
 - 🚦 **Per-IP rate limiting** via `slowapi`
+- 🗄️ **Cached exchange sessions** to reuse market metadata
 
 ---
 
@@ -275,6 +276,7 @@ ccxt-trading-webhook/
 │   ├── auth.py
 │   ├── routes.py
 │   ├── exchange_factory.py
+│   ├── session_pool.py
 │   ├── utils.py
 ├── config/settings.py
 ├── tests/test_webhook.py
