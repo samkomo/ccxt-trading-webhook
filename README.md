@@ -57,6 +57,7 @@ DEFAULT_API_SECRET=your_exchange_api_secret
 LOG_LEVEL=INFO
 RATE_LIMIT=10/minute
 SIGNATURE_CACHE_TTL=300
+TOKEN_TTL=86400
 ```
 
 | Variable           | Description |
@@ -68,6 +69,7 @@ SIGNATURE_CACHE_TTL=300
 | `LOG_LEVEL`        | Logging verbosity |
 | `RATE_LIMIT`       | Requests allowed per timeframe |
 | `SIGNATURE_CACHE_TTL` | Cache TTL for replay-protection signatures |
+| `TOKEN_TTL` | Expiration time for issued tokens (seconds) |
 
 ---
 
@@ -116,19 +118,25 @@ Use this when custom headers can't be set (e.g., TradingView):
 
 ```json
 {
-  "token": "your_shared_secret",
+  "token": "issued_token_here",
   ...
 }
 ```
 
-**How to Generate the Token:**  
-Use a secure random string as your shared secret and assign it to `WEBHOOK_SECRET` in your `.env`. Use the same value as the `token` in TradingView payloads.
-
-Generate a secure token:
+**Issuing a Token**
+Generate and store a token with an optional TTL (defaults to `TOKEN_TTL`):
 
 ```bash
-openssl rand -hex 32
+python manage_tokens.py issue --ttl 3600
 ```
+The command prints the token value which should be used in TradingView alerts.
+
+**Revoking a Token**
+
+```bash
+python manage_tokens.py revoke <token>
+```
+Expired tokens are automatically cleaned up during verification.
 
 ---
 
@@ -141,7 +149,7 @@ openssl rand -hex 32
 
 ```json
 {
-  "token": "your_shared_secret",
+  "token": "issued_token_here",
   "exchange": "{{exchange}}",
   "apiKey": "your_api_key",
   "secret": "your_api_secret",

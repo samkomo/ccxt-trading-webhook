@@ -17,6 +17,7 @@ class Settings(BaseSettings):
         RATE_LIMIT (str): Requests allowed per time window (e.g., "10/minute").
         SIGNATURE_CACHE_TTL (int): Seconds to remember request signatures for
             replay protection.
+        TOKEN_TTL (int): Seconds before issued tokens expire.
     """
     WEBHOOK_SECRET: str
     DEFAULT_EXCHANGE: str
@@ -25,6 +26,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     RATE_LIMIT: str = "10/minute"
     SIGNATURE_CACHE_TTL: int = 300
+    TOKEN_TTL: int = 86400
 
     model_config = SettingsConfigDict(
         env_file=".env",

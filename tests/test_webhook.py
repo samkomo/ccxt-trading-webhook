@@ -15,16 +15,24 @@ from httpx import AsyncClient, ASGITransport
 import app.exchange_factory as exchange_factory
 import app.routes as routes
 from app.auth import verify_token
+from app.token_store import issue_token, revoke_token
 
 transport = ASGITransport(app=app)
 
 
 def test_verify_token_valid():
-    assert verify_token(settings.WEBHOOK_SECRET) is True
+    token = issue_token(ttl=5)
+    assert verify_token(token) is True
+    revoke_token(token)
 
 
 def test_verify_token_invalid():
     assert verify_token("bad_token") is False
+
+
+def test_verify_token_expired():
+    token = issue_token(ttl=-1)
+    assert verify_token(token) is False
 
 @pytest.mark.asyncio
 async def test_health_check():
@@ -124,8 +132,9 @@ async def test_get_exchange_invalid_id():
 
 @pytest.mark.asyncio
 async def test_invalid_exchange_route():
+    token = issue_token(ttl=30)
     payload = {
-        "token": settings.WEBHOOK_SECRET,
+        "token": token,
         "exchange": "nosuch",
         "apiKey": "key",
         "secret": "secret",
@@ -137,6 +146,7 @@ async def test_invalid_exchange_route():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post("/webhook", json=payload)
         assert response.status_code == 400
+    revoke_token(token)
 
 
 @pytest.mark.asyncio
@@ -159,8 +169,9 @@ async def test_valid_token_order(monkeypatch):
     monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
     monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
 
+    token = issue_token(ttl=30)
     payload = {
-        "token": settings.WEBHOOK_SECRET,
+        "token": token,
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -173,6 +184,7 @@ async def test_valid_token_order(monkeypatch):
         response = await client.post("/webhook", json=payload)
         assert response.status_code == 200
         assert response.json()["order"] == dummy_order
+    revoke_token(token)
 
 
 @pytest.mark.asyncio
