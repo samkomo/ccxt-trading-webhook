@@ -5,7 +5,7 @@ import time
 import json
 import hmac
 import hashlib
-from typing import Optional
+from fastapi import HTTPException
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -113,6 +113,30 @@ async def test_invalid_signature():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post("/webhook", json=payload, headers=headers)
         assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_exchange_invalid_id():
+    with pytest.raises(HTTPException) as exc:
+        await exchange_factory.get_exchange("nosuch", "k", "s")
+    assert exc.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_invalid_exchange_route():
+    payload = {
+        "token": settings.WEBHOOK_SECRET,
+        "exchange": "nosuch",
+        "apiKey": "key",
+        "secret": "secret",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 1,
+        "price": 30000,
+    }
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload)
+        assert response.status_code == 400
 
 
 @pytest.mark.asyncio
