@@ -1,3 +1,5 @@
+"""HTTP route handlers exposing the trading webhook endpoint."""
+
 from fastapi import APIRouter, HTTPException, Request, status, Depends
 from app.auth import verify_signature, verify_token, require_api_key
 from app.exchange_factory import get_exchange, release_exchange
