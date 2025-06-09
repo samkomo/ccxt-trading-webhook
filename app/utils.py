@@ -5,9 +5,17 @@ from pythonjsonlogger import jsonlogger
 from config.settings import settings
 
 def setup_logger(name: str = "webhook_logger") -> logging.Logger:
-    """
-    Sets up and returns a consistent logger.
-    Falls back to INFO if log level is invalid or undefined.
+    """Configure and return a structured logger instance.
+
+    Parameters
+    ----------
+    name: str, optional
+        Logger name to create or retrieve. Defaults to ``"webhook_logger"``.
+
+    Returns
+    -------
+    logging.Logger
+        The configured logger with JSON formatting applied.
     """
     logger = logging.getLogger(name)
 

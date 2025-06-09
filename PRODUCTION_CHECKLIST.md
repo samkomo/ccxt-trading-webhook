@@ -22,7 +22,7 @@
 - [x] Use Pydantic models for validation
 - [x] Centralized logging setup
 - [x] Config management using Pydantic Settings
-- [ ] Add docstrings and inline comments throughout
+- [x] Add docstrings and inline comments throughout
 
 ## ✅ Observability & Deployment
 - [x] Structured logging
@@ -59,6 +59,6 @@
 - [x] Reuse CCXT clients via a session pool to reduce connection overhead
 
 ## 📄 Documentation
-- [ ] Add inline docstrings for all utility and route functions
+- [x] Add inline docstrings for all utility and route functions
  - [x] Generate OpenAPI schema and add `/docs` link in README
  - [x] Include Postman collection for webhook usage

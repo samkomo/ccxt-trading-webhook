@@ -23,7 +23,25 @@ logger = logging.getLogger("webhook_logger")
     retry=retry_if_exception_type((NetworkError, ExchangeError)),
 )
 async def place_market_order(exchange, symbol: str, side: str, amount: float):
-    """Place a market order with retry on network or exchange errors."""
+    """Create a market order on the given exchange.
+
+    Parameters
+    ----------
+    exchange: ccxt.Exchange
+        The exchange client on which to execute the trade.
+    symbol: str
+        Trading pair symbol, e.g. ``"BTC/USDT"``.
+    side: str
+        ``"buy"`` or ``"sell"``.
+    amount: float
+        Asset quantity to trade.
+
+    Returns
+    -------
+    dict
+        The order information returned by CCXT.
+    """
+
     return await exchange.create_market_order(
         symbol=symbol,
         side=side,
@@ -60,8 +78,22 @@ class WebhookPayload(BaseModel):
 @router.post("/webhook")
 @limiter.limit(settings.RATE_LIMIT)
 async def webhook(request: Request, payload: WebhookPayload, _: None = Depends(require_api_key)):
-    """Handles webhook requests, enforcing HTTPS and verifying either an HMAC
-    signature or token before executing the order."""
+    """Process an authenticated webhook request.
+
+    Parameters
+    ----------
+    request: Request
+        Incoming FastAPI request used for header inspection.
+    payload: WebhookPayload
+        Parsed payload containing order details and credentials.
+    _ : None
+        API key dependency placeholder.
+
+    Returns
+    -------
+    dict
+        JSON response describing the execution status.
+    """
     if settings.REQUIRE_HTTPS and request.url.scheme != "https":
         logger.warning("Plain HTTP request rejected")
         raise HTTPException(status_code=400, detail="HTTPS required")
