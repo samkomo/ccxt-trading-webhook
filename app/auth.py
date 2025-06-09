@@ -12,6 +12,7 @@ import hashlib
 import time
 from fastapi import Request
 from config.settings import settings
+from app.token_store import is_token_valid
 import logging
 from typing import Optional, Dict
 
@@ -91,7 +92,8 @@ def verify_token(token: Optional[str]) -> bool:
     if token is None:
         logger.warning("Missing token in fallback mode")
         return False
-    if not hmac.compare_digest(token, settings.WEBHOOK_SECRET):
-        logger.warning("Invalid token in fallback mode")
+
+    if not is_token_valid(token):
+        logger.warning("Invalid or expired token in fallback mode")
         return False
     return True
