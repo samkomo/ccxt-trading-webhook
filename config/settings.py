@@ -18,6 +18,7 @@ class Settings(BaseSettings):
         SIGNATURE_CACHE_TTL (int): Seconds to remember request signatures for
             replay protection.
         TOKEN_TTL (int): Seconds before issued tokens expire.
+        REQUIRE_HTTPS (bool): Reject non-HTTPS requests when True.
     """
     WEBHOOK_SECRET: str
     DEFAULT_EXCHANGE: str
@@ -27,6 +28,7 @@ class Settings(BaseSettings):
     RATE_LIMIT: str = "10/minute"
     SIGNATURE_CACHE_TTL: int = 300
     TOKEN_TTL: int = 86400
+    REQUIRE_HTTPS: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
