@@ -10,7 +10,7 @@ Supports:
 import hmac
 import hashlib
 import time
-from fastapi import Request
+from fastapi import Request, HTTPException, status
 from config.settings import settings
 from app.token_store import is_token_valid, is_nonce_reused
 import logging
@@ -23,6 +23,15 @@ MAX_TIMESTAMP_AGE = 300  # 5 minutes
 
 # Simple in-memory cache to track recently seen request signatures
 signature_cache: Dict[str, float] = {}
+
+async def require_api_key(request: Request) -> None:
+    """Optional header-based API key authentication."""
+    if not settings.REQUIRE_API_KEY:
+        return
+    api_key = request.headers.get("X-API-Key")
+    if not api_key or api_key != settings.STATIC_API_KEY:
+        logger.warning("Invalid or missing API key")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
 
 async def verify_signature(request: Request) -> bool:
     """
