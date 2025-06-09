@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, status
 from app.auth import verify_signature, verify_token
-from app.exchange_factory import get_exchange
+from app.session_pool import get_session
 from typing import Optional, Literal
 from pydantic import BaseModel, constr, confloat
 import logging
@@ -54,9 +54,11 @@ async def webhook(request: Request, payload: WebhookPayload):
             raise HTTPException(status_code=403, detail="Unauthorized")
 
     exchange = None
+    markets = None
     try:
-        exchange = await get_exchange(payload.exchange, payload.apiKey, payload.secret)
-        markets = await exchange.load_markets()
+        exchange, markets = await get_session(
+            payload.exchange, payload.apiKey, payload.secret
+        )
         logger.debug(markets.get(payload.symbol))
 
         # order = await exchange.create_limit_order(
@@ -93,6 +95,4 @@ async def webhook(request: Request, payload: WebhookPayload):
         logger.exception("Unhandled server error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    finally:
-        if exchange:
-            await exchange.close()
+

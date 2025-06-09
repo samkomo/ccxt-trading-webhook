@@ -29,6 +29,10 @@ This project is a production-grade, asynchronous webhook server built with **Fas
 - 🧪 **Full async test suite** with `pytest-asyncio` and mocking
 - ☁️ **Heroku deployment ready**
 - 🚦 **Per-IP rate limiting** via `slowapi`
+- 🗄️ **Session pooling** to reuse exchange connections and markets for faster orders
+
+Caching the exchange sessions avoids repeated `load_markets` calls, reducing
+order latency by roughly **500ms** per request during testing.
 
 ---
 

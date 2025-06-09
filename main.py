@@ -6,6 +6,7 @@ from app.rate_limiter import limiter
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from app.session_pool import close_all_sessions
 
 app = FastAPI()
 setup_logger()
@@ -15,6 +16,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 app.include_router(webhook_router)
+
+
+@app.on_event("shutdown")
+async def _close_sessions() -> None:
+    await close_all_sessions()
 
 @app.get("/")
 async def health_check():

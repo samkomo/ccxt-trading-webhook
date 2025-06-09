@@ -14,6 +14,7 @@ from config.settings import settings
 from httpx import AsyncClient, ASGITransport
 import app.exchange_factory as exchange_factory
 import app.routes as routes
+import app.session_pool as session_pool
 from app.auth import verify_token
 from app.token_store import issue_token, revoke_token
 
@@ -163,11 +164,11 @@ async def test_valid_token_order(monkeypatch):
         async def close(self):
             pass
 
-    async def mock_get_exchange(*args, **kwargs):
-        return DummyExchange()
+    async def mock_get_session(*args, **kwargs):
+        return DummyExchange(), {"SOL/USDT": {"type": "future"}}
 
-    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
-    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(session_pool, "get_session", mock_get_session)
+    monkeypatch.setattr(routes, "get_session", mock_get_session)
 
     token = issue_token(ttl=30)
     payload = {
@@ -201,11 +202,11 @@ async def test_signature_reuse_rejected(monkeypatch):
         async def close(self):
             pass
 
-    async def mock_get_exchange(*args, **kwargs):
-        return DummyExchange()
+    async def mock_get_session(*args, **kwargs):
+        return DummyExchange(), {"SOL/USDT": {"type": "future"}}
 
-    monkeypatch.setattr(exchange_factory, "get_exchange", mock_get_exchange)
-    monkeypatch.setattr(routes, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(session_pool, "get_session", mock_get_session)
+    monkeypatch.setattr(routes, "get_session", mock_get_session)
 
     payload = {
         "exchange": "binance",
