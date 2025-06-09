@@ -39,12 +39,12 @@
 - [ ] Consider token expiration and replay protection via nonce
 
 ## 💥 Error Handling
-- [ ] Add unit tests for signature/timestamp failures
+- [x] Add unit tests for signature/timestamp failures
 - [x] Handle specific CCXT exceptions with retry/circuit-breaker logic
 
 ## 🧪 Testing
 - [ ] Add full test coverage for webhook endpoint
-- [ ] Mock CCXT responses in unit tests
+- [x] Mock CCXT responses in unit tests
 - [ ] Test token mode and HMAC mode separately
 
 ## 📊 Logging & Monitoring
