@@ -3,9 +3,15 @@ Factory for creating CCXT async exchange instances with error handling.
 """
 
 import ccxt.async_support as ccxt
+try:
+    import ccxt.pro as ccxtpro
+except Exception:  # pragma: no cover - optional dependency
+    ccxtpro = None
+
 from config.settings import settings
 from fastapi import HTTPException, status
 from typing import Optional
+from app.session_pool import get_session
 
 async def get_exchange(
     exchange_id: str,
@@ -29,13 +35,15 @@ async def get_exchange(
     """
     exchange_id = exchange_id.lower()  # 🛠 Normalize input
 
-    if exchange_id not in ccxt.exchanges:
+    supported = set(ccxt.exchanges)
+    if settings.USE_WEBSOCKETS and ccxtpro:
+        supported = supported.union(getattr(ccxtpro, 'exchanges', []))
+
+    if exchange_id not in supported:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Exchange '{exchange_id}' is not supported by CCXT."
         )
-
-    exchange_class = getattr(ccxt, exchange_id)
 
     api_key = api_key or settings.DEFAULT_API_KEY
     secret = secret or settings.DEFAULT_API_SECRET
@@ -47,13 +55,7 @@ async def get_exchange(
         )
 
     try:
-        exchange = exchange_class({
-            'apiKey': api_key,
-            'secret': secret,
-            'options': {
-                'defaultType': 'future'  # ← set this
-            }
-        })
+        exchange = await get_session(exchange_id, api_key, secret)
         return exchange
     except Exception as e:
         raise HTTPException(

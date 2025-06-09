@@ -15,6 +15,7 @@
 ## ✅ Scalability
 - [x] Use FastAPI for async I/O
 - [x] Use ccxt.async_support for non-blocking order placement
+- [x] Support WebSocket order routing when available
 - [ ] Support background queueing (Celery, RQ) for high-latency orders (future)
 
 ## ✅ Maintainability

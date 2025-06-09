@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request, status
 from app.auth import verify_signature, verify_token
 from app.exchange_factory import get_exchange
+from app.session_pool import close_session
 from typing import Optional
 from pydantic import BaseModel
 import logging
@@ -63,11 +64,23 @@ async def webhook(request: Request, payload: WebhookPayload):
         #     amount=payload.amount,
         #     price=payload.price
         # )
-        order = await exchange.create_market_order(
-            symbol=payload.symbol,
-            side=payload.side,
-            amount=payload.amount
-        )
+        if (
+            settings.USE_WEBSOCKETS
+            and getattr(getattr(exchange, "has", {}), "get", lambda x, d=None: d)("createOrderWs")
+            and hasattr(exchange, "create_order_ws")
+        ):
+            order = await exchange.create_order_ws(
+                symbol=payload.symbol,
+                type="market",
+                side=payload.side,
+                amount=payload.amount,
+            )
+        else:
+            order = await exchange.create_market_order(
+                symbol=payload.symbol,
+                side=payload.side,
+                amount=payload.amount,
+            )
 
         logger.info(f"Order placed: {order}")
         return {"status": "success", "order": order}
@@ -93,4 +106,4 @@ async def webhook(request: Request, payload: WebhookPayload):
 
     finally:
         if exchange:
-            await exchange.close()
+            await close_session(exchange)
