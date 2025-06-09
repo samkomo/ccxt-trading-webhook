@@ -1,3 +1,5 @@
+"""Utilities for reusing CCXT exchange clients across asynchronous tasks."""
+
 import asyncio
 from typing import Dict, Tuple, Optional
 import ccxt.async_support as ccxt
@@ -7,6 +9,11 @@ class ExchangeSessionPool:
     """Asynchronous pool for reusing CCXT client sessions."""
 
     def __init__(self, maxsize: int = 5):
+        """Create a new session pool.
+
+        Args:
+            maxsize: Maximum clients to keep for each credential set.
+        """
         self.maxsize = maxsize
         self._pools: Dict[Tuple[str, str, str], asyncio.Queue] = {}
         self._lock = asyncio.Lock()

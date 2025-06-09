@@ -1,3 +1,5 @@
+"""SQLite-backed storage for authentication tokens and replay nonces."""
+
 import sqlite3
 import time
 import secrets

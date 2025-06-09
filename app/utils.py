@@ -1,3 +1,5 @@
+"""Shared utility helpers for logging configuration."""
+
 import logging
 from pythonjsonlogger import jsonlogger
 from config.settings import settings
