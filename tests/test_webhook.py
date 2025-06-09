@@ -12,6 +12,12 @@ from ccxt.base.errors import ExchangeError, NetworkError
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+# Ensure default configuration for tests
+os.environ.setdefault("WEBHOOK_SECRET", "testsecret")
+os.environ.setdefault("DEFAULT_EXCHANGE", "binance")
+os.environ.setdefault("DEFAULT_API_KEY", "key")
+os.environ.setdefault("DEFAULT_API_SECRET", "secret")
+
 from main import app
 from config.settings import settings
 from httpx import AsyncClient, ASGITransport
