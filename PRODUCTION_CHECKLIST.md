@@ -55,6 +55,9 @@
 - [x] Add support for background task queue (e.g., Celery)
 - [x] Async enqueue-to-worker architecture for non-blocking execution
 
+## ♻️ Connection Management
+- [x] Reuse CCXT clients via a session pool to reduce connection overhead
+
 ## 📄 Documentation
 - [ ] Add inline docstrings for all utility and route functions
  - [x] Generate OpenAPI schema and add `/docs` link in README

@@ -6,6 +6,7 @@ import ccxt.async_support as ccxt
 from config.settings import settings
 from fastapi import HTTPException, status
 from typing import Optional
+from app.session_pool import exchange_pool
 
 async def get_exchange(
     exchange_id: str,
@@ -47,16 +48,19 @@ async def get_exchange(
         )
 
     try:
-        exchange = exchange_class({
-            'apiKey': api_key,
-            'secret': secret,
-            'options': {
-                'defaultType': 'future'  # ← set this
-            }
-        })
+        exchange = await exchange_pool.acquire(
+            exchange_id,
+            api_key,
+            secret,
+        )
         return exchange
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to initialize exchange '{exchange_id}': {str(e)}"
         )
+
+
+async def release_exchange(exchange) -> None:
+    """Return an exchange client to the shared session pool."""
+    await exchange_pool.release(exchange)
