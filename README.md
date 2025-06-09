@@ -32,7 +32,10 @@ This project is a production-grade, asynchronous webhook server built with **Fas
 - 🗄️ **Session pooling** to reuse exchange connections and markets for faster orders
 
 Caching the exchange sessions avoids repeated `load_markets` calls, reducing
-order latency by roughly **500ms** per request during testing.
+order latency by roughly **500ms** per request during testing. Cached sessions
+expire after `SESSION_TTL` seconds of inactivity.
+SESSION_TTL=3600
+| `SESSION_TTL` | Seconds to keep cached exchange sessions |
 - 📑 **JSON structured logging** for easy ingestion
 - 📊 **Prometheus metrics** available at `/metrics`
 

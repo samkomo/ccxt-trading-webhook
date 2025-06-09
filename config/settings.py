@@ -19,6 +19,7 @@ class Settings(BaseSettings):
             replay protection.
         TOKEN_TTL (int): Seconds before issued tokens expire.
         REQUIRE_HTTPS (bool): Reject non-HTTPS requests when True.
+    SESSION_TTL: int = 3600
         QUEUE_ORDERS (bool): Enqueue orders to Celery when True.
         STATIC_API_KEY (str): API key required in header when enabled.
         REQUIRE_API_KEY (bool): Enforce API key verification when True.
