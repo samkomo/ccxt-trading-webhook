@@ -10,7 +10,7 @@
 - [x] Graceful error handling with FastAPI HTTP exceptions
 - [x] Close exchange connections (ccxt.async_support)
 - [x] Health check endpoint
-- [ ] Implement retry logic or circuit breaker pattern for exchange errors
+- [x] Implement retry logic or circuit breaker pattern for exchange errors
 
 ## ✅ Scalability
 - [x] Use FastAPI for async I/O
@@ -35,16 +35,16 @@
 # 🧩 Project Backlog (To-Do List)
 
 ## 🔐 Security
-- [ ] Add optional API key authentication layer
+- [x] Add optional API key authentication layer
 - [ ] Consider token expiration and replay protection via nonce
 
 ## 💥 Error Handling
-- [ ] Add unit tests for signature/timestamp failures
-- [ ] Handle specific CCXT exceptions with retry/circuit-breaker logic
+- [x] Add unit tests for signature/timestamp failures
+- [x] Handle specific CCXT exceptions with retry/circuit-breaker logic
 
 ## 🧪 Testing
 - [ ] Add full test coverage for webhook endpoint
-- [ ] Mock CCXT responses in unit tests
+- [x] Mock CCXT responses in unit tests
 - [ ] Test token mode and HMAC mode separately
 
 ## 📊 Logging & Monitoring
@@ -52,8 +52,8 @@
  - [x] Integrate with a monitoring platform (Heroku Metrics or external)
 
 ## 🔁 Background Jobs (Advanced)
-- [ ] Add support for background task queue (e.g., Celery)
-- [ ] Async enqueue-to-worker architecture for non-blocking execution
+- [x] Add support for background task queue (e.g., Celery)
+- [x] Async enqueue-to-worker architecture for non-blocking execution
 
 ## 📄 Documentation
 - [ ] Add inline docstrings for all utility and route functions
