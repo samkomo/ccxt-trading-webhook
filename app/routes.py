@@ -5,6 +5,8 @@ from typing import Optional
 from pydantic import BaseModel
 import logging
 from ccxt.base.errors import ExchangeError, NetworkError
+from app.rate_limiter import limiter
+from config.settings import settings
 
 router = APIRouter()
 logger = logging.getLogger("webhook_logger")
@@ -35,6 +37,7 @@ class WebhookPayload(BaseModel):
 
 
 @router.post("/webhook")
+@limiter.limit(settings.RATE_LIMIT)
 async def webhook(request: Request, payload: WebhookPayload):
     if "X-Signature" in request.headers:
         if not await verify_signature(request):
