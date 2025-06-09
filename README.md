@@ -58,6 +58,7 @@ LOG_LEVEL=INFO
 RATE_LIMIT=10/minute
 SIGNATURE_CACHE_TTL=300
 TOKEN_TTL=86400
+REQUIRE_HTTPS=false
 ```
 
 | Variable           | Description |
@@ -70,6 +71,7 @@ TOKEN_TTL=86400
 | `RATE_LIMIT`       | Requests allowed per timeframe |
 | `SIGNATURE_CACHE_TTL` | Cache TTL for replay-protection signatures |
 | `TOKEN_TTL` | Expiration time for issued tokens (seconds) |
+| `REQUIRE_HTTPS` | Reject plain HTTP requests when set to `true` |
 
 ---
 
@@ -224,7 +226,48 @@ heroku config:set LOG_LEVEL=INFO
 
 ---
 
-## 10. 📂 Project Structure
+## 10. 🔒 HTTPS & Reverse Proxy
+
+For production you should serve the webhook over HTTPS. You can either run
+Uvicorn behind a reverse proxy like **Nginx** or enable TLS directly.
+
+### Nginx Example
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name example.com;
+
+    ssl_certificate     /path/fullchain.pem;
+    ssl_certificate_key /path/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Run Uvicorn bound to localhost:
+
+```bash
+uvicorn main:app --host 127.0.0.1 --port 8000
+```
+
+### Direct TLS with Uvicorn
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 443 \
+  --ssl-keyfile /path/privkey.pem --ssl-certfile /path/fullchain.pem
+```
+
+Set `REQUIRE_HTTPS=true` in `.env` to reject plain HTTP requests.
+
+---
+
+## 11. 📂 Project Structure
 
 ```text
 ccxt-trading-webhook/

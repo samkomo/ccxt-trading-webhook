@@ -39,6 +39,9 @@ class WebhookPayload(BaseModel):
 @router.post("/webhook")
 @limiter.limit(settings.RATE_LIMIT)
 async def webhook(request: Request, payload: WebhookPayload):
+    if settings.REQUIRE_HTTPS and request.url.scheme != "https":
+        logger.warning("Plain HTTP request rejected")
+        raise HTTPException(status_code=400, detail="HTTPS required")
     if "X-Signature" in request.headers:
         if not await verify_signature(request):
             logger.warning("Invalid HMAC signature")
