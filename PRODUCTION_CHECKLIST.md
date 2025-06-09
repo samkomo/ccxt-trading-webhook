@@ -56,7 +56,7 @@
 - [x] Async enqueue-to-worker architecture for non-blocking execution
 
 ## ♻️ Connection Management
-- [ ] Reuse CCXT clients via a session pool to reduce connection overhead
+- [x] Reuse CCXT clients via a session pool to reduce connection overhead
 
 ## 📄 Documentation
 - [ ] Add inline docstrings for all utility and route functions

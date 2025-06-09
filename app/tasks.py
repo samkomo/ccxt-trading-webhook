@@ -6,7 +6,7 @@ import os
 from celery import Celery
 from ccxt.base.errors import ExchangeError, NetworkError
 
-from app.exchange_factory import get_exchange
+from app.exchange_factory import get_exchange, release_exchange
 
 celery_app = Celery(__name__)
 celery_app.conf.broker_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
@@ -35,7 +35,7 @@ async def _execute_order(payload: dict) -> dict:
         raise
     finally:
         if exchange:
-            await exchange.close()
+            await release_exchange(exchange)
 
 
 @celery_app.task(name="place_order")
