@@ -29,6 +29,8 @@ This project is a production-grade, asynchronous webhook server built with **Fas
 - 🧪 **Full async test suite** with `pytest-asyncio` and mocking
 - ☁️ **Heroku deployment ready**
 - 🚦 **Per-IP rate limiting** via `slowapi`
+- 📑 **JSON structured logging** for easy ingestion
+- 📊 **Prometheus metrics** available at `/metrics`
 
 ---
 
@@ -79,6 +81,8 @@ REQUIRE_API_KEY=false
 | `STATIC_API_KEY` | API key expected in the `X-API-Key` header |
 | `REQUIRE_API_KEY` | Enable static API key verification |
 
+Logs are emitted in JSON format for easier ingestion into log platforms.
+
 ---
 
 ## 5. ▶️ Running the Webhook Locally
@@ -91,6 +95,12 @@ Test the health endpoint:
 
 ```bash
 curl http://127.0.0.1:8000/
+```
+
+Expose metrics:
+
+```bash
+curl http://127.0.0.1:8000/metrics
 ```
 
 Simulate an alert:

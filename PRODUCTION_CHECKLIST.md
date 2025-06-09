@@ -28,7 +28,7 @@
 - [x] Structured logging
 - [x] Heroku-compatible Procfile and runtime.txt
 - [x] .env-driven configuration
-- [ ] Integrate external monitoring (e.g., Sentry, Prometheus)
+ - [x] Integrate external monitoring (e.g., Sentry, Prometheus)
 
 ---
 
@@ -48,8 +48,8 @@
 - [ ] Test token mode and HMAC mode separately
 
 ## 📊 Logging & Monitoring
-- [ ] Add structured log output for DataDog/ELK compatibility
-- [ ] Integrate with a monitoring platform (Heroku Metrics or external)
+ - [x] Add structured log output for DataDog/ELK compatibility
+ - [x] Integrate with a monitoring platform (Heroku Metrics or external)
 
 ## 🔁 Background Jobs (Advanced)
 - [x] Add support for background task queue (e.g., Celery)
