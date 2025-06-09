@@ -15,6 +15,9 @@ class Settings(BaseSettings):
         DEFAULT_API_SECRET (str): Fallback API secret.
         LOG_LEVEL (str): Logging verbosity (DEBUG, INFO, etc.).
         RATE_LIMIT (str): Requests allowed per time window (e.g., "10/minute").
+        SIGNATURE_CACHE_TTL (int): Replay cache TTL in seconds.
+        SIGNATURE_CACHE_BACKEND (str): "memory" or "redis" backend.
+        REDIS_URL (str): Redis connection URL when using redis backend.
     """
     WEBHOOK_SECRET: str
     DEFAULT_EXCHANGE: str
@@ -22,6 +25,9 @@ class Settings(BaseSettings):
     DEFAULT_API_SECRET: str
     LOG_LEVEL: str = "INFO"
     RATE_LIMIT: str = "10/minute"
+    SIGNATURE_CACHE_TTL: int = 300
+    SIGNATURE_CACHE_BACKEND: str = "memory"  # "memory" or "redis"
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     model_config = SettingsConfigDict(
         env_file=".env",

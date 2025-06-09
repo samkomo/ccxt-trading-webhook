@@ -14,6 +14,7 @@ from fastapi import Request
 from config.settings import settings
 import logging
 from typing import Optional
+from app.signature_cache import is_duplicate
 
 logger = logging.getLogger("webhook_logger")
 
@@ -52,6 +53,11 @@ async def verify_signature(request: Request) -> bool:
 
         if not hmac.compare_digest(expected_signature, signature_header):
             logger.warning("Signature mismatch")
+            return False
+
+        # Replay protection via cache
+        if await is_duplicate(signature_header):
+            logger.warning("Replay attack detected")
             return False
 
         return True
