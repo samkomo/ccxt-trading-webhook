@@ -4,7 +4,7 @@
 - [x] Authenticate requests using HMAC signature or token fallback
 - [x] Timestamp validation to prevent replay attacks
 - [x] Secure environment-based secret management
-- [ ] Implement rate limiting or IP whitelisting (optional enhancement)
+- [x] Implement rate limiting or IP whitelisting (optional enhancement)
 
 ## ✅ Reliability
 - [x] Graceful error handling with FastAPI HTTP exceptions
