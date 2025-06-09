@@ -39,6 +39,8 @@ class WebhookPayload(BaseModel):
 @router.post("/webhook")
 @limiter.limit(settings.RATE_LIMIT)
 async def webhook(request: Request, payload: WebhookPayload):
+    """Handles webhook requests, enforcing HTTPS and verifying either an HMAC
+    signature or token before executing the order."""
     if settings.REQUIRE_HTTPS and request.url.scheme != "https":
         logger.warning("Plain HTTP request rejected")
         raise HTTPException(status_code=400, detail="HTTPS required")
