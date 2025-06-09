@@ -230,7 +230,12 @@ python simulate_tradingview.py
 ```bash
 heroku create ccxt-fastapi-webhook
 heroku config:set WEBHOOK_SECRET=...
+heroku addons:create heroku-redis:hobby-dev
+heroku config:set CELERY_BROKER_URL=$(heroku config:get REDIS_URL)
+heroku config:set CELERY_RESULT_BACKEND=$(heroku config:get REDIS_URL)
+heroku config:set QUEUE_ORDERS=true
 git push heroku main
+heroku ps:scale worker=1
 ```
 
 ### GitHub-Based Auto Deploy:
@@ -246,6 +251,11 @@ heroku config:set DEFAULT_EXCHANGE=binance
 heroku config:set DEFAULT_API_KEY=your_api_key
 heroku config:set DEFAULT_API_SECRET=your_api_secret
 heroku config:set LOG_LEVEL=INFO
+heroku addons:create heroku-redis:hobby-dev
+heroku config:set CELERY_BROKER_URL=$(heroku config:get REDIS_URL)
+heroku config:set CELERY_RESULT_BACKEND=$(heroku config:get REDIS_URL)
+heroku config:set QUEUE_ORDERS=true
+heroku ps:scale web=1 worker=1
 ```
 
 ---
