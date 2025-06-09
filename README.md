@@ -225,6 +225,9 @@ python simulate_tradingview.py
 
 ## 9. ☁️ Deployment (Heroku)
 
+Detailed deployment guides, including Docker Compose and VPS instructions,
+are available in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ### CLI-Based Deployment:
 
 ```bash
