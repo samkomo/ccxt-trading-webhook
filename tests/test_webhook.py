@@ -12,6 +12,8 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from main import app
 from config.settings import settings
 from httpx import AsyncClient, ASGITransport
+import app.exchange_factory
+import app.routes
 
 transport = ASGITransport(app=app)
 
@@ -102,3 +104,39 @@ async def test_invalid_signature():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post("/webhook", json=payload, headers=headers)
         assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_valid_token_order(monkeypatch):
+    dummy_order = {"id": "order1", "status": "filled"}
+
+    class DummyExchange:
+        async def load_markets(self):
+            return {"SOL/USDT": {"type": "future"}}
+
+        async def create_market_order(self, symbol, side, amount):
+            return dummy_order
+
+        async def close(self):
+            pass
+
+    async def mock_get_exchange(*args, **kwargs):
+        return DummyExchange()
+
+    monkeypatch.setattr(app.exchange_factory, "get_exchange", mock_get_exchange)
+    monkeypatch.setattr(app.routes, "get_exchange", mock_get_exchange)
+
+    payload = {
+        "token": settings.WEBHOOK_SECRET,
+        "exchange": "binance",
+        "apiKey": "x",
+        "secret": "y",
+        "symbol": "BTC/USDT",
+        "side": "buy",
+        "amount": 0.01,
+        "price": 30000
+    }
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhook", json=payload)
+        assert response.status_code == 200
+        assert response.json()["order"] == dummy_order
