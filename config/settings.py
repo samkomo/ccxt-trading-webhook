@@ -15,6 +15,8 @@ class Settings(BaseSettings):
         DEFAULT_API_SECRET (str): Fallback API secret.
         LOG_LEVEL (str): Logging verbosity (DEBUG, INFO, etc.).
         RATE_LIMIT (str): Requests allowed per time window (e.g., "10/minute").
+        SIGNATURE_CACHE_TTL (int): Seconds to remember request signatures for
+            replay protection.
     """
     WEBHOOK_SECRET: str
     DEFAULT_EXCHANGE: str
@@ -22,6 +24,7 @@ class Settings(BaseSettings):
     DEFAULT_API_SECRET: str
     LOG_LEVEL: str = "INFO"
     RATE_LIMIT: str = "10/minute"
+    SIGNATURE_CACHE_TTL: int = 300
 
     model_config = SettingsConfigDict(
         env_file=".env",

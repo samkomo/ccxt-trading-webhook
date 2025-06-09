@@ -13,12 +13,15 @@ import time
 from fastapi import Request
 from config.settings import settings
 import logging
-from typing import Optional
+from typing import Optional, Dict
 
 logger = logging.getLogger("webhook_logger")
 
 # Acceptable clock drift range in seconds
 MAX_TIMESTAMP_AGE = 300  # 5 minutes
+
+# Simple in-memory cache to track recently seen request signatures
+signature_cache: Dict[str, float] = {}
 
 async def verify_signature(request: Request) -> bool:
     """
@@ -53,6 +56,19 @@ async def verify_signature(request: Request) -> bool:
         if not hmac.compare_digest(expected_signature, signature_header):
             logger.warning("Signature mismatch")
             return False
+        # Clean out expired cache entries
+        now = int(time.time())
+        expired = [sig for sig, exp in signature_cache.items() if exp <= now]
+        for sig in expired:
+            signature_cache.pop(sig, None)
+
+        # Reject if we've already seen this signature recently
+        if signature_header in signature_cache:
+            logger.warning("Replay attack detected: signature reuse")
+            return False
+
+        # Store signature with future expiry for replay protection
+        signature_cache[signature_header] = now + settings.SIGNATURE_CACHE_TTL
 
         return True
     except ValueError:
