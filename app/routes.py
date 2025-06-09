@@ -25,6 +25,7 @@ class WebhookPayload(BaseModel):
         amount (float): Amount of asset to buy/sell (> 0).
         price (float): Limit price for the order (> 0).
         token (Optional[str]): Fallback auth token (for unsigned clients like TradingView).
+        nonce (Optional[str]): Unique value to prevent replay attacks in token mode.
     """
     exchange: str
     apiKey: str
@@ -34,6 +35,7 @@ class WebhookPayload(BaseModel):
     amount: confloat(gt=0)
     price: confloat(gt=0)
     token: Optional[str] = None
+    nonce: Optional[str] = None
 
 
 @router.post("/webhook")
@@ -49,7 +51,7 @@ async def webhook(request: Request, payload: WebhookPayload):
             logger.warning("Invalid HMAC signature")
             raise HTTPException(status_code=403, detail="Invalid signature")
     else:
-        if not verify_token(payload.token):
+        if not verify_token(payload.token, payload.nonce):
             logger.warning("Missing or invalid token in fallback mode")
             raise HTTPException(status_code=403, detail="Unauthorized")
 

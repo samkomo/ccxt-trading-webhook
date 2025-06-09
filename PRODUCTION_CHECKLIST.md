@@ -36,7 +36,7 @@
 
 ## 🔐 Security
 - [ ] Add optional API key authentication layer
-- [ ] Consider token expiration and replay protection via nonce
+- [x] Consider token expiration and replay protection via nonce
 
 ## 💥 Error Handling
 - [ ] Add unit tests for signature/timestamp failures

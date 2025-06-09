@@ -2,11 +2,14 @@ import sqlite3
 import time
 import secrets
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 
 from config.settings import settings
 
 DB_PATH = Path("tokens.db")
+
+# In-memory store of recently seen nonces to prevent replay attacks
+nonce_cache: Dict[str, float] = {}
 
 
 def _get_conn():
@@ -52,3 +55,22 @@ def is_token_valid(token: str) -> bool:
             conn.commit()
             return False
         return True
+
+
+def is_nonce_reused(nonce: str, ttl: Optional[int] = None) -> bool:
+    """Check and store nonce to prevent replay attacks.
+
+    Returns True if the nonce has been seen recently.
+    """
+    now = int(time.time())
+
+    # purge expired entries
+    expired = [n for n, exp in nonce_cache.items() if exp <= now]
+    for n in expired:
+        nonce_cache.pop(n, None)
+
+    if nonce in nonce_cache:
+        return True
+
+    nonce_cache[nonce] = now + int(ttl or settings.SIGNATURE_CACHE_TTL)
+    return False

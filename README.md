@@ -121,9 +121,13 @@ Use this when custom headers can't be set (e.g., TradingView):
 ```json
 {
   "token": "issued_token_here",
+  "nonce": "unique_value",
   ...
 }
 ```
+
+Each nonce is remembered for `SIGNATURE_CACHE_TTL` seconds to prevent replay of
+the same alert payload.
 
 **Issuing a Token**
 Generate and store a token with an optional TTL (defaults to `TOKEN_TTL`):
@@ -152,6 +156,7 @@ Expired tokens are automatically cleaned up during verification.
 ```json
 {
   "token": "issued_token_here",
+  "nonce": "unique_value",
   "exchange": "{{exchange}}",
   "apiKey": "your_api_key",
   "secret": "your_api_secret",

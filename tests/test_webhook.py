@@ -2,6 +2,7 @@ import sys
 import os
 import pytest
 import time
+import secrets
 import json
 import hmac
 import hashlib
@@ -22,17 +23,17 @@ transport = ASGITransport(app=app)
 
 def test_verify_token_valid():
     token = issue_token(ttl=5)
-    assert verify_token(token) is True
+    assert verify_token(token, secrets.token_hex(8)) is True
     revoke_token(token)
 
 
 def test_verify_token_invalid():
-    assert verify_token("bad_token") is False
+    assert verify_token("bad_token", secrets.token_hex(8)) is False
 
 
 def test_verify_token_expired():
     token = issue_token(ttl=-1)
-    assert verify_token(token) is False
+    assert verify_token(token, secrets.token_hex(8)) is False
 
 @pytest.mark.asyncio
 async def test_health_check():
@@ -65,6 +66,7 @@ async def test_missing_auth():
 async def test_invalid_token():
     payload = {
         "token": "wrong_token",
+        "nonce": secrets.token_hex(8),
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -135,6 +137,7 @@ async def test_invalid_exchange_route():
     token = issue_token(ttl=30)
     payload = {
         "token": token,
+        "nonce": secrets.token_hex(8),
         "exchange": "nosuch",
         "apiKey": "key",
         "secret": "secret",
@@ -172,6 +175,7 @@ async def test_valid_token_order(monkeypatch):
     token = issue_token(ttl=30)
     payload = {
         "token": token,
+        "nonce": secrets.token_hex(8),
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -236,6 +240,7 @@ async def test_signature_reuse_rejected(monkeypatch):
 async def test_invalid_side_rejected():
     payload = {
         "token": settings.WEBHOOK_SECRET,
+        "nonce": secrets.token_hex(8),
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -253,6 +258,7 @@ async def test_invalid_side_rejected():
 async def test_invalid_symbol_rejected():
     payload = {
         "token": settings.WEBHOOK_SECRET,
+        "nonce": secrets.token_hex(8),
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -270,6 +276,7 @@ async def test_invalid_symbol_rejected():
 async def test_negative_amount_rejected():
     payload = {
         "token": settings.WEBHOOK_SECRET,
+        "nonce": secrets.token_hex(8),
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",
@@ -287,6 +294,7 @@ async def test_negative_amount_rejected():
 async def test_zero_price_rejected():
     payload = {
         "token": settings.WEBHOOK_SECRET,
+        "nonce": secrets.token_hex(8),
         "exchange": "binance",
         "apiKey": "x",
         "secret": "y",

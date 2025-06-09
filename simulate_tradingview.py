@@ -8,6 +8,7 @@ logger = setup_logger("simulate_tradingview")
 url = "http://127.0.0.1:8000/webhook"
 payload = {
     "token": "dummy",
+    "nonce": str(time.time()),
     "exchange": "binance",
     "apiKey": "dummy",
     "secret": "dummy",

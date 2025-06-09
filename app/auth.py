@@ -12,7 +12,7 @@ import hashlib
 import time
 from fastapi import Request
 from config.settings import settings
-from app.token_store import is_token_valid
+from app.token_store import is_token_valid, is_nonce_reused
 import logging
 from typing import Optional, Dict
 
@@ -79,18 +79,23 @@ async def verify_signature(request: Request) -> bool:
         logger.exception("Unexpected error during signature verification")
         return False
 
-def verify_token(token: Optional[str]) -> bool:
+def verify_token(token: Optional[str], nonce: Optional[str]) -> bool:
     """
     Verifies a simple token against the shared secret (used by fallback systems).
 
     Args:
         token (Optional[str]): Token provided in JSON body.
+        nonce (Optional[str]): Unique nonce to prevent replay attacks.
 
     Returns:
         bool: True if valid, else False.
     """
-    if token is None:
-        logger.warning("Missing token in fallback mode")
+    if token is None or nonce is None:
+        logger.warning("Missing token or nonce in fallback mode")
+        return False
+
+    if is_nonce_reused(nonce):
+        logger.warning("Replay attack detected: nonce reuse")
         return False
 
     if not is_token_valid(token):
