@@ -1,15 +1,9 @@
 # CCXT FastAPI Webhook Documentation
 
-Welcome! This site provides documentation for the **CCXT FastAPI Webhook** project.
-Most of the content mirrors the repository's `README.md`.
+Welcome! This site contains the full documentation for the **CCXT FastAPI Webhook** project. Use the navigation pane to explore the user guide, authentication options, TradingView examples, API reference and deployment instructions.
 
-Use the navigation pane to explore the README or deployment guide.
-
-To share these docs from a remote server (e.g. Heroku) you can run:
-
+To share these docs from a remote server you can run:
 ```bash
 mkdocs serve -a 0.0.0.0:8000
 ```
-
-This project also publishes the static site to GitHub Pages on each push to `main`.
-
+The documentation site is automatically published to GitHub Pages on each push to `main`.
