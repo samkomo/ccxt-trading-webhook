@@ -11,6 +11,12 @@ from fastapi import HTTPException
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+# Ensure default configuration for tests
+os.environ.setdefault("WEBHOOK_SECRET", "testsecret")
+os.environ.setdefault("DEFAULT_EXCHANGE", "binance")
+os.environ.setdefault("DEFAULT_API_KEY", "key")
+os.environ.setdefault("DEFAULT_API_SECRET", "secret")
+
 from app.auth import verify_signature
 from app.session_pool import ExchangeSessionPool
 from app.tasks import _execute_order, place_order_task
