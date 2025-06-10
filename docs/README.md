@@ -228,6 +228,7 @@ python simulate_tradingview.py
 Detailed deployment guides, including Docker Compose and VPS instructions,
 are available in [docs/deployment.md](docs/deployment.md).
 
+
 ### CLI-Based Deployment:
 
 ```bash

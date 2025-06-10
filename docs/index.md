@@ -12,3 +12,4 @@ mkdocs serve -a 0.0.0.0:8000
 ```
 
 This project also publishes the static site to GitHub Pages on each push to `main`.
+
