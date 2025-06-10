@@ -19,8 +19,13 @@ Full setup and usage instructions live in the [docs](https://your-username.githu
 Install dependencies and run the tests:
 ```bash
 pip install -r requirements.txt
+# Extras needed for local documentation builds
+pip install mkdocs-material mkdocs-openapi-markdown-plugin
 pytest
 ```
+
+These extra packages are required if you plan to run `mkdocs build` or
+`mkdocs serve` locally.
 
 ## License
 MIT
