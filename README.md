@@ -355,6 +355,7 @@ web: mkdocs serve -a 0.0.0.0:$PORT
 Push this to a separate Heroku app or any server to view the docs externally.
 The `docs.yml` workflow also publishes the static site to GitHub Pages whenever
 pushing to `main`.
+GitHub Pages must be enabled in your repository settings before the `deploy-pages` step can succeed. Navigate to **Settings → Pages** and select the branch and directory (e.g., `/docs` or `/`) to activate Pages.
 
 ---
 
