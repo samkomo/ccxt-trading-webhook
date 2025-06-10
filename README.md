@@ -335,14 +335,26 @@ A ready-made Postman collection lives at [`docs/postman_collection.json`](docs/p
 
 ## 13. 📚 MkDocs Documentation
 
-Install MkDocs and preview the docs site locally:
+Install MkDocs and preview the docs site:
 
 ```bash
 pip install mkdocs
+# local preview
 mkdocs serve
 ```
 
-The docs are built from the `docs/` directory and will be available at http://127.0.0.1:8000/.
+The docs are built from the `docs/` directory and served at
+<http://127.0.0.1:8000/> by default. To expose them on a remote host (for
+example a Heroku dyno) run `mkdocs serve -a 0.0.0.0:8000` so the server listens
+on all interfaces. A simple `Procfile` entry would look like:
+
+```procfile
+web: mkdocs serve -a 0.0.0.0:$PORT
+```
+
+Push this to a separate Heroku app or any server to view the docs externally.
+The `docs.yml` workflow also publishes the static site to GitHub Pages whenever
+pushing to `main`.
 ---
 
 ## 📄 License
