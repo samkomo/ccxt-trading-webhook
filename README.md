@@ -20,7 +20,7 @@ Install dependencies and run the tests:
 ```bash
 pip install -r requirements.txt
 # Extras needed for local documentation builds
-pip install mkdocs-material mkdocs-openapi-markdown-plugin
+pip install mkdocs-material mkdocs-openapi-markdown-plugin openapi-markdown
 pytest
 ```
 

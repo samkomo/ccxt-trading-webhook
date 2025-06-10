@@ -26,7 +26,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 # Extras required for local documentation builds
-pip install mkdocs-material mkdocs-openapi-markdown-plugin
+pip install mkdocs-material mkdocs-openapi-markdown-plugin openapi-markdown
 ```
 
 These additional packages are needed if you plan to run `mkdocs build` or
