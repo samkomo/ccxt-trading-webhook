@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - run: pip install mkdocs-material mkdocs-openapi-markdown-plugin
+      - run: pip install mkdocs-material mkdocs-openapi-markdown-plugin openapi-markdown
       - run: mkdocs build
       - uses: actions/upload-pages-artifact@v3
         with:
