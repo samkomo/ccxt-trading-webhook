@@ -328,10 +328,10 @@ ccxt-trading-webhook/
 
 ## 12. 📬 Postman Collection
 
-A ready-made Postman collection lives at [`docs/postman_collection.json`](docs/postman_collection.json). Import it for quick testing:
+A ready-made Postman collection lives at [`postman_collection.json`](postman_collection.json). Import it for quick testing:
 
 1. Open **Postman** and click **Import**.
-2. Select the **File** tab and choose `docs/postman_collection.json` from this repo.
+2. Select the **File** tab and choose `postman_collection.json` from this repo.
 3. Run the **Send Webhook** request against your local server.
 
 ---
