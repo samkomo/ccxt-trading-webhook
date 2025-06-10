@@ -333,16 +333,6 @@ A ready-made Postman collection lives at [`docs/postman_collection.json`](docs/p
 2. Select the **File** tab and choose `docs/postman_collection.json` from this repo.
 3. Run the **Send Webhook** request against your local server.
 
-## 13. 📚 MkDocs Documentation
-
-Install MkDocs and preview the docs site locally:
-
-```bash
-pip install mkdocs
-mkdocs serve
-```
-
-The docs are built from the `docs/` directory and will be available at http://127.0.0.1:8000/.
 ---
 
 ## 📄 License

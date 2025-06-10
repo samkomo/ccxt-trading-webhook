@@ -1,0 +1,5 @@
+site_name: CCXT FastAPI Webhook
+nav:
+  - Home: index.md
+  - README: README.md
+  - Deployment Guide: deployment.md
