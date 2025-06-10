@@ -25,7 +25,12 @@ source venv/bin/activate
 
 pip install -r requirements.txt
 cp .env.example .env
+# Extras required for local documentation builds
+pip install mkdocs-material mkdocs-openapi-markdown-plugin
 ```
+
+These additional packages are needed if you plan to run `mkdocs build` or
+`mkdocs serve` locally.
 
 ## Running the Webhook Locally
 ```bash
