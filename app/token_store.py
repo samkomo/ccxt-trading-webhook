@@ -86,3 +86,4 @@ def cleanup_expired_nonces() -> None:
     now = int(time.time())
     with _get_conn() as conn:
         _cleanup_nonces(conn, now)
+    return None
