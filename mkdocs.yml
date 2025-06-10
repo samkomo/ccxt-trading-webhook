@@ -1,5 +1,23 @@
 site_name: CCXT FastAPI Webhook
+repo_url: https://github.com/your-username/ccxt-trading-webhook
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+
 nav:
   - Home: index.md
-  - README: README.md
-  - Deployment Guide: deployment.md
+  - User Guide:
+      - Getting Started: getting-started.md
+      - Authentication: authentication.md
+      - TradingView Integration: tradingview.md
+  - Reference:
+      - API Reference: api-reference.md
+  - Deployment:
+      - Deployment Guide: deployment.md
+
+plugins:
+  - search
+  - openapi_markdown:
+      openapi_file: docs/openapi.json
+      output_file: docs/api-reference.md
