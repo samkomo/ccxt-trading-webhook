@@ -21,6 +21,7 @@ from .auth import create_jwt, decode_jwt, get_current_user
 from .permissions import permission_required
 from app.compliance.storage import save_encrypted_data
 from app.compliance.ocr import perform_ocr
+from app.compliance.virus_scan import scan_for_viruses
 import secrets
 
 router = APIRouter(prefix="/api/v1/identity", tags=["identity"])
@@ -109,6 +110,7 @@ class TokenCreatePayload(BaseModel):
     permissions: dict = {}
     role_restrictions: list[str] | None = None
     expires_in: int | None = None
+    mfa_code: str | None = None
 
 
 class TokenUpdatePayload(BaseModel):
@@ -189,6 +191,28 @@ def logout(current: User = Depends(get_current_user)):
     return {"message": "logged out"}
 
 
+class MfaSetupResponse(BaseModel):
+    secret: str
+
+
+@router.post("/mfa/setup", response_model=MfaSetupResponse)
+def mfa_setup(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+    if current.mfa_secret:
+        raise HTTPException(status_code=400, detail="MFA already enabled")
+    import pyotp
+    secret = pyotp.random_base32()
+    current.mfa_secret = secret
+    db.commit()
+    return MfaSetupResponse(secret=secret)
+
+
+@router.post("/mfa/disable")
+def mfa_disable(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+    current.mfa_secret = None
+    db.commit()
+    return {"disabled": True}
+
+
 @router.post("/forgot-password")
 def forgot_password(payload: ForgotPayload, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
@@ -257,12 +281,10 @@ def upload_profile_picture(
     db: Session = Depends(get_db),
     current: User = Depends(get_current_user),
 ):
-    directory = "uploads/profile_pictures"
-    os.makedirs(directory, exist_ok=True)
-    filename = f"{current.id}_{file.filename}"
-    path = os.path.join(directory, filename)
-    with open(path, "wb") as out:
-        out.write(file.file.read())
+    data = file.file.read()
+    if not scan_for_viruses(data):
+        raise HTTPException(status_code=400, detail="File failed virus scan")
+    path, _ = save_encrypted_data(data, "uploads/profile_pictures")
     user = db.query(User).filter(User.id == current.id).first()
     user.profile_picture_url = path
     db.commit()
@@ -369,6 +391,18 @@ def issue_token(
     db: Session = Depends(get_db),
     current: User = Depends(get_current_user),
 ):
+    if current.mfa_secret:
+        if not payload.mfa_code:
+            raise HTTPException(status_code=400, detail="MFA code required")
+        try:
+            import pyotp
+            totp = pyotp.TOTP(current.mfa_secret)
+            if not totp.verify(payload.mfa_code, valid_window=1):
+                raise HTTPException(status_code=400, detail="Invalid MFA code")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid MFA code")
     token = ApiToken(
         user_id=current.id,
         token_name=payload.token_name,
@@ -503,6 +537,8 @@ def upload_kyc_document(
     if not verification:
         raise HTTPException(status_code=400, detail="No pending KYC application")
     data = file.file.read()
+    if not scan_for_viruses(data):
+        raise HTTPException(status_code=400, detail="File failed virus scan")
     path, key_id = save_encrypted_data(data, "uploads/kyc")
     ocr = perform_ocr(data)
     doc = KycDocument(
