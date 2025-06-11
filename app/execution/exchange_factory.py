@@ -6,7 +6,7 @@ import ccxt.async_support as ccxt
 from config.settings import settings
 from fastapi import HTTPException, status
 from typing import Optional
-from app.session_pool import exchange_pool
+from app.execution.session_pool import exchange_pool
 
 async def get_exchange(
     exchange_id: str,

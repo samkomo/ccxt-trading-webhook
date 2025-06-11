@@ -1,7 +1,7 @@
 """Command-line interface for issuing and revoking webhook tokens."""
 
 import argparse
-from app.token_store import issue_token, revoke_token
+from app.identity.token_store import issue_token, revoke_token
 
 parser = argparse.ArgumentParser(description="Manage webhook tokens")
 subparsers = parser.add_subparsers(dest="command")
