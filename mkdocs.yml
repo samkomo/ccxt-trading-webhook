@@ -14,6 +14,9 @@ nav:
       - Feature Overview: features.md
   - Reference:
       - API Reference: api-reference.md
+  - Design:
+      - Identity Module: identity-module-design.md
+      - Identity Implementation Plan: identity-implementation-plan.md
   - Deployment:
       - Deployment Guide: deployment.md
 
