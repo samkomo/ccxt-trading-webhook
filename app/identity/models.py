@@ -2,7 +2,16 @@ import uuid
 import secrets
 import hashlib
 from sqlalchemy import (
-    Column, String, Integer, Boolean, DateTime, Date, ForeignKey, JSON, Text, Index
+    Column,
+    String,
+    Integer,
+    Boolean,
+    DateTime,
+    Date,
+    ForeignKey,
+    JSON,
+    Text,
+    Index,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -18,7 +27,9 @@ def hash_token(token: str) -> str:
 
 class TimestampMixin:
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class User(Base, TimestampMixin):
@@ -44,9 +55,13 @@ class User(Base, TimestampMixin):
     password_reset_expires_at = Column(DateTime(timezone=True))
     last_login_at = Column(DateTime(timezone=True))
 
-    roles = relationship("UserRole", back_populates="user", foreign_keys="UserRole.user_id")
+    roles = relationship(
+        "UserRole", back_populates="user", foreign_keys="UserRole.user_id"
+    )
     tokens = relationship("ApiToken", back_populates="user")
-    kyc_verifications = relationship("KycVerification", back_populates="user", foreign_keys="KycVerification.user_id")
+    kyc_verifications = relationship(
+        "KycVerification", back_populates="user", foreign_keys="KycVerification.user_id"
+    )
 
     def set_password(self, password: str) -> None:
         self.password_hash = pwd_context.hash(password)
@@ -70,9 +85,7 @@ class Role(Base, TimestampMixin):
     parent = relationship("Role", remote_side=[id])
     permissions = relationship("RolePermission", back_populates="role")
 
-    __table_args__ = (
-        Index("idx_role_hierarchy", "parent_role_id", "hierarchy_level"),
-    )
+    __table_args__ = (Index("idx_role_hierarchy", "parent_role_id", "hierarchy_level"),)
 
 
 class Permission(Base, TimestampMixin):
@@ -89,9 +102,7 @@ class Permission(Base, TimestampMixin):
 
     roles = relationship("RolePermission", back_populates="permission")
 
-    __table_args__ = (
-        Index("idx_permission_resource", "resource", "action"),
-    )
+    __table_args__ = (Index("idx_permission_resource", "resource", "action"),)
 
 
 class RolePermission(Base):
@@ -168,7 +179,9 @@ class KycVerification(Base, TimestampMixin):
     rejection_reason = Column(Text)
     compliance_score = Column(Integer)
 
-    user = relationship("User", back_populates="kyc_verifications", foreign_keys=[user_id])
+    user = relationship(
+        "User", back_populates="kyc_verifications", foreign_keys=[user_id]
+    )
     documents = relationship("KycDocument", back_populates="verification")
 
 
@@ -176,7 +189,9 @@ class KycDocument(Base):
     __tablename__ = "kyc_documents"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    kyc_verification_id = Column(String(36), ForeignKey("kyc_verifications.id"), nullable=False)
+    kyc_verification_id = Column(
+        String(36), ForeignKey("kyc_verifications.id"), nullable=False
+    )
     document_type = Column(String(50), nullable=False)
     file_path = Column(String(500), nullable=False)
     file_size = Column(Integer, nullable=False)
@@ -207,3 +222,21 @@ class PermissionAuditLog(Base):
         Index("idx_audit_user", "user_id", "created_at"),
         Index("idx_audit_resource", "resource", "created_at"),
     )
+
+
+class TokenUsageLog(Base):
+    """Audit trail of API token usage."""
+
+    __tablename__ = "token_usage_log"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    token_id = Column(String(36), ForeignKey("api_tokens.id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    ip_address = Column(String(45))
+    user_agent = Column(Text)
+    used_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    token = relationship("ApiToken")
+    user = relationship("User")
+
+    __table_args__ = (Index("idx_token_usage", "token_id", "used_at"),)

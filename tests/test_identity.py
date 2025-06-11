@@ -2,6 +2,7 @@ import os
 import sys
 import pytest
 from httpx import AsyncClient, ASGITransport
+from app.identity.auth import verify_token
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -15,9 +16,10 @@ os.environ["DATABASE_URL"] = "sqlite:///test_identity.db"
 from main import app
 from app.db import Base, engine
 
-if os.path.exists('test_identity.db'):
-    os.remove('test_identity.db')
+if os.path.exists("test_identity.db"):
+    os.remove("test_identity.db")
 Base.metadata.create_all(engine)
+
 
 @pytest.fixture(autouse=True)
 def clean_db():
@@ -26,24 +28,40 @@ def clean_db():
     yield
     Base.metadata.drop_all(engine)
 
+
 transport = ASGITransport(app=app)
+
 
 @pytest.mark.asyncio
 async def test_register_verify_login_flow(tmp_path):
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        resp = await client.post("/api/v1/identity/register", json={"email": "a@example.com", "password": "pass"})
+        resp = await client.post(
+            "/api/v1/identity/register",
+            json={"email": "a@example.com", "password": "pass"},
+        )
         assert resp.status_code == 200
         token = resp.json()["email_verification_token"]
         resp = await client.post("/api/v1/identity/verify-email", json={"token": token})
         assert resp.status_code == 200
-        resp = await client.post("/api/v1/identity/login", json={"email": "a@example.com", "password": "pass"})
+        resp = await client.post(
+            "/api/v1/identity/login",
+            json={"email": "a@example.com", "password": "pass"},
+        )
         assert resp.status_code == 200
         assert "access_token" in resp.json()
-        reset_resp = await client.post("/api/v1/identity/forgot-password", json={"email": "a@example.com"})
+        reset_resp = await client.post(
+            "/api/v1/identity/forgot-password", json={"email": "a@example.com"}
+        )
         reset_token = reset_resp.json()["reset_token"]
-        resp = await client.post("/api/v1/identity/reset-password", json={"token": reset_token, "new_password": "newpass"})
+        resp = await client.post(
+            "/api/v1/identity/reset-password",
+            json={"token": reset_token, "new_password": "newpass"},
+        )
         assert resp.status_code == 200
-        resp = await client.post("/api/v1/identity/login", json={"email": "a@example.com", "password": "newpass"})
+        resp = await client.post(
+            "/api/v1/identity/login",
+            json={"email": "a@example.com", "password": "newpass"},
+        )
         assert resp.status_code == 200
 
 
@@ -51,8 +69,14 @@ async def test_register_verify_login_flow(tmp_path):
 async def test_profile_crud_and_delete(tmp_path):
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # register and login
-        await client.post("/api/v1/identity/register", json={"email": "b@example.com", "password": "pass"})
-        login = await client.post("/api/v1/identity/login", json={"email": "b@example.com", "password": "pass"})
+        await client.post(
+            "/api/v1/identity/register",
+            json={"email": "b@example.com", "password": "pass"},
+        )
+        login = await client.post(
+            "/api/v1/identity/login",
+            json={"email": "b@example.com", "password": "pass"},
+        )
         token = login.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
 
@@ -87,3 +111,47 @@ async def test_profile_crud_and_delete(tmp_path):
         resp = await client.get("/api/v1/identity/profile", headers=headers)
         assert resp.status_code == 401
 
+
+@pytest.mark.asyncio
+async def test_token_endpoints(tmp_path):
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        await client.post(
+            "/api/v1/identity/register",
+            json={"email": "c@example.com", "password": "pass"},
+        )
+        login = await client.post(
+            "/api/v1/identity/login",
+            json={"email": "c@example.com", "password": "pass"},
+        )
+        token = login.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        resp = await client.post(
+            "/api/v1/identity/tokens",
+            json={"token_name": "t1", "token_type": "personal"},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        api_token = resp.json()["token"]
+        token_id = resp.json()["id"]
+
+        assert verify_token(api_token, "n1") is True
+
+        resp = await client.get("/api/v1/identity/tokens", headers=headers)
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
+
+        resp = await client.put(
+            f"/api/v1/identity/tokens/{token_id}",
+            json={"token_name": "updated"},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+
+        resp = await client.delete(
+            f"/api/v1/identity/tokens/{token_id}", headers=headers
+        )
+        assert resp.status_code == 200
+
+        resp = await client.get("/api/v1/identity/tokens", headers=headers)
+        assert resp.json()[0]["is_revoked"] is True

@@ -10,6 +10,7 @@ from .models import (
     Permission,
     RolePermission,
     UserRole,
+    ApiToken,
 )
 from .auth import create_jwt, decode_jwt, get_current_user
 from .permissions import permission_required
@@ -75,6 +76,7 @@ class UpdateProfilePayload(BaseModel):
     timezone: str | None = None
     language: str | None = None
 
+
 class RolePayload(BaseModel):
     name: str
     display_name: str
@@ -92,6 +94,22 @@ class PermissionPayload(BaseModel):
 
 class AssignRolePayload(BaseModel):
     role_id: str
+
+
+class TokenCreatePayload(BaseModel):
+    token_name: str
+    token_type: str
+    permissions: dict = {}
+    role_restrictions: list[str] | None = None
+    expires_in: int | None = None
+
+
+class TokenUpdatePayload(BaseModel):
+    token_name: str | None = None
+    permissions: dict | None = None
+    role_restrictions: list[str] | None = None
+    expires_in: int | None = None
+    is_revoked: bool | None = None
 
 
 @router.post("/register")
@@ -118,7 +136,10 @@ def register(payload: RegisterPayload, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    return {"user_id": user.id, "email_verification_token": user.email_verification_token}
+    return {
+        "user_id": user.id,
+        "email_verification_token": user.email_verification_token,
+    }
 
 
 @router.post("/verify-email")
@@ -139,7 +160,9 @@ def verify_email(payload: VerifyEmailPayload, db: Session = Depends(get_db)):
 def login(payload: LoginPayload, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not user.verify_password(payload.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
     token = create_jwt(user.id, expires_in=86400)
     user.last_login_at = datetime.utcnow()
     db.commit()
@@ -169,7 +192,11 @@ def reset_password(payload: ResetPayload, db: Session = Depends(get_db)):
     if not user_id:
         raise HTTPException(status_code=400, detail="Invalid token")
     user = db.query(User).filter(User.password_reset_token == payload.token).first()
-    if not user or not user.password_reset_expires_at or user.password_reset_expires_at < datetime.utcnow():
+    if (
+        not user
+        or not user.password_reset_expires_at
+        or user.password_reset_expires_at < datetime.utcnow()
+    ):
         raise HTTPException(status_code=400, detail="Invalid or expired token")
     user.set_password(payload.new_password)
     user.password_reset_token = None
@@ -228,11 +255,14 @@ def upload_profile_picture(
 
 
 @router.delete("/account")
-def delete_account(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+def delete_account(
+    db: Session = Depends(get_db), current: User = Depends(get_current_user)
+):
     user = db.query(User).filter(User.id == current.id).first()
     db.delete(user)
     db.commit()
     return {"message": "account deleted"}
+
 
 @permission_required("role_management", "read")
 @router.get("/roles")
@@ -304,7 +334,9 @@ def get_user_roles(user_id: str, db: Session = Depends(get_db)):
 
 @permission_required("role_management", "write")
 @router.post("/users/{user_id}/roles")
-def assign_role(user_id: str, payload: AssignRolePayload, db: Session = Depends(get_db)):
+def assign_role(
+    user_id: str, payload: AssignRolePayload, db: Session = Depends(get_db)
+):
     user = db.query(User).filter(User.id == user_id).first()
     role = db.query(Role).filter(Role.id == payload.role_id).first()
     if not user or not role:
@@ -314,3 +346,91 @@ def assign_role(user_id: str, payload: AssignRolePayload, db: Session = Depends(
     db.commit()
     db.refresh(assoc)
     return {"id": assoc.id}
+
+
+@router.post("/tokens")
+def issue_token(
+    payload: TokenCreatePayload,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    token = ApiToken(
+        user_id=current.id,
+        token_name=payload.token_name,
+        token_type=payload.token_type,
+        permissions=payload.permissions,
+        role_restrictions=(
+            {"roles": payload.role_restrictions} if payload.role_restrictions else {}
+        ),
+    )
+    if payload.expires_in:
+        token.expires_at = datetime.utcnow() + timedelta(seconds=payload.expires_in)
+    raw = token.generate_token()
+    db.add(token)
+    db.commit()
+    db.refresh(token)
+    return {"id": token.id, "token": raw}
+
+
+@router.get("/tokens")
+def list_tokens(
+    db: Session = Depends(get_db), current: User = Depends(get_current_user)
+):
+    tokens = db.query(ApiToken).filter(ApiToken.user_id == current.id).all()
+    return [
+        {
+            "id": t.id,
+            "token_name": t.token_name,
+            "token_type": t.token_type,
+            "permissions": t.permissions,
+            "role_restrictions": t.role_restrictions,
+            "expires_at": t.expires_at.isoformat() if t.expires_at else None,
+            "is_revoked": t.is_revoked,
+        }
+        for t in tokens
+    ]
+
+
+@router.delete("/tokens/{token_id}")
+def revoke_token_route(
+    token_id: str,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    token = (
+        db.query(ApiToken)
+        .filter(ApiToken.id == token_id, ApiToken.user_id == current.id)
+        .first()
+    )
+    if not token:
+        raise HTTPException(status_code=404, detail="Token not found")
+    token.is_revoked = True
+    db.commit()
+    return {"revoked": True}
+
+
+@router.put("/tokens/{token_id}")
+def update_token_route(
+    token_id: str,
+    payload: TokenUpdatePayload,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    token = (
+        db.query(ApiToken)
+        .filter(ApiToken.id == token_id, ApiToken.user_id == current.id)
+        .first()
+    )
+    if not token:
+        raise HTTPException(status_code=404, detail="Token not found")
+
+    data = payload.model_dump(exclude_unset=True)
+    if "expires_in" in data:
+        token.expires_at = datetime.utcnow() + timedelta(seconds=data.pop("expires_in"))
+    if "role_restrictions" in data:
+        token.role_restrictions = {"roles": data.pop("role_restrictions")}
+    for field, value in data.items():
+        setattr(token, field, value)
+    db.commit()
+    db.refresh(token)
+    return {"updated": True}
