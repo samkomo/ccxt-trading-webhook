@@ -6,14 +6,14 @@ webhook service.
 """
 
 from fastapi import FastAPI
-from app.routes import router as webhook_router
+from app.api.routes import router as webhook_router
 import logging
 from app.utils import setup_logger
 from app.rate_limiter import limiter
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from app.metrics import MetricsMiddleware, metrics
+from app.dashboard.metrics import MetricsMiddleware, metrics
 
 # Initialize application and configure logging
 app = FastAPI()

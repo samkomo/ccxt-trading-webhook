@@ -17,10 +17,10 @@ os.environ.setdefault("DEFAULT_EXCHANGE", "binance")
 os.environ.setdefault("DEFAULT_API_KEY", "key")
 os.environ.setdefault("DEFAULT_API_SECRET", "secret")
 
-from app.auth import verify_signature
-from app.session_pool import ExchangeSessionPool
-from app.tasks import _execute_order, place_order_task
-import app.exchange_factory as exchange_factory
+from app.identity.auth import verify_signature
+from app.execution.session_pool import ExchangeSessionPool
+from app.execution.tasks import _execute_order, place_order_task
+import app.execution.exchange_factory as exchange_factory
 from ccxt.base.errors import NetworkError
 
 class DummyRequest:
@@ -97,8 +97,8 @@ async def test_execute_order_success(monkeypatch):
     calls = {'n': 0}
     async def release_mock(exchange):
         calls['n'] += 1
-    monkeypatch.setattr('app.tasks.get_exchange', fake_get)
-    monkeypatch.setattr('app.tasks.release_exchange', release_mock)
+    monkeypatch.setattr('app.execution.tasks.get_exchange', fake_get)
+    monkeypatch.setattr('app.execution.tasks.release_exchange', release_mock)
 
     result = await _execute_order({'exchange':'binance','apiKey':'k','secret':'s','symbol':'BTC/USDT','side':'buy','amount':1})
     assert result == {'id': 'ok'}
@@ -117,8 +117,8 @@ async def test_execute_order_network_error(monkeypatch):
         return DummyExchange()
     async def rel(ex):
         pass
-    monkeypatch.setattr('app.tasks.get_exchange', fake_get)
-    monkeypatch.setattr('app.tasks.release_exchange', rel)
+    monkeypatch.setattr('app.execution.tasks.get_exchange', fake_get)
+    monkeypatch.setattr('app.execution.tasks.release_exchange', rel)
 
     with pytest.raises(NetworkError):
         await _execute_order({'exchange':'binance','apiKey':'k','secret':'s','symbol':'BTC/USDT','side':'buy','amount':1})
@@ -135,7 +135,7 @@ def test_place_order_task(monkeypatch):
 async def test_api_key_invalid(monkeypatch):
     from main import app
     from httpx import AsyncClient, ASGITransport
-    import app.routes as routes
+    import app.api.routes as routes
     transport = ASGITransport(app=app, raise_app_exceptions=False)
     settings = __import__('config.settings', fromlist=['settings']).settings
     settings.REQUIRE_API_KEY = True
@@ -154,7 +154,7 @@ async def test_api_key_invalid(monkeypatch):
     monkeypatch.setattr(routes, 'get_exchange', mock_get)
     monkeypatch.setattr(exchange_factory, 'get_exchange', mock_get)
 
-    token = __import__('app.token_store', fromlist=['issue_token']).issue_token(ttl=5)
+    token = __import__('app.identity.token_store', fromlist=['issue_token']).issue_token(ttl=5)
     payload = {
         'token': token,
         'nonce': 'badkey',
@@ -177,7 +177,7 @@ async def test_api_key_invalid(monkeypatch):
 async def test_queue_failure(monkeypatch):
     from main import app
     from httpx import AsyncClient, ASGITransport
-    import app.routes as routes
+    import app.api.routes as routes
     transport = ASGITransport(app=app, raise_app_exceptions=False)
     settings = __import__('config.settings', fromlist=['settings']).settings
     settings.QUEUE_ORDERS = True

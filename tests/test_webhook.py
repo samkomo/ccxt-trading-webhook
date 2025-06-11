@@ -21,10 +21,10 @@ os.environ.setdefault("DEFAULT_API_SECRET", "secret")
 from main import app
 from config.settings import settings
 from httpx import AsyncClient, ASGITransport
-import app.exchange_factory as exchange_factory
-import app.routes as routes
-from app.auth import verify_token
-from app.token_store import issue_token, revoke_token, DB_PATH
+import app.execution.exchange_factory as exchange_factory
+import app.api.routes as routes
+from app.identity.auth import verify_token
+from app.identity.token_store import issue_token, revoke_token, DB_PATH
 from app.rate_limiter import limiter
 
 transport = ASGITransport(app=app)

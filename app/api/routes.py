@@ -1,9 +1,9 @@
 """HTTP route handlers exposing the trading webhook endpoint."""
 
 from fastapi import APIRouter, HTTPException, Request, status, Depends
-from app.auth import verify_signature, verify_token, require_api_key
-from app.exchange_factory import get_exchange, release_exchange
-from app.tasks import place_order_task
+from app.identity.auth import verify_signature, verify_token, require_api_key
+from app.execution.exchange_factory import get_exchange, release_exchange
+from app.execution.tasks import place_order_task
 from typing import Optional, Literal
 from pydantic import BaseModel, constr, confloat
 import logging
