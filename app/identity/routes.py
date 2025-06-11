@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends, status, UploadFile
+from fastapi import APIRouter, HTTPException, Depends, status, UploadFile, Form
 import os
+from typing import Optional
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, date
@@ -11,9 +12,13 @@ from .models import (
     RolePermission,
     UserRole,
     ApiToken,
+    KycVerification,
+    KycDocument,
 )
 from .auth import create_jwt, decode_jwt, get_current_user
 from .permissions import permission_required
+from app.compliance.storage import save_encrypted_data
+from app.compliance.ocr import perform_ocr
 import secrets
 
 router = APIRouter(prefix="/api/v1/identity", tags=["identity"])
@@ -110,6 +115,14 @@ class TokenUpdatePayload(BaseModel):
     role_restrictions: list[str] | None = None
     expires_in: int | None = None
     is_revoked: bool | None = None
+
+
+class KycSubmitPayload(BaseModel):
+    kyc_level: str = "basic"
+
+
+class DocumentUploadPayload(BaseModel):
+    document_type: str
 
 
 @router.post("/register")
@@ -434,3 +447,119 @@ def update_token_route(
     db.commit()
     db.refresh(token)
     return {"updated": True}
+
+
+@router.post("/kyc")
+def submit_kyc(
+    payload: KycSubmitPayload,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    verification = KycVerification(
+        user_id=current.id,
+        kyc_level=payload.kyc_level,
+        status="pending",
+    )
+    db.add(verification)
+    db.commit()
+    db.refresh(verification)
+    return {"id": verification.id, "status": verification.status}
+
+
+@router.get("/kyc")
+def get_kyc_status(
+    db: Session = Depends(get_db), current: User = Depends(get_current_user)
+):
+    verification = (
+        db.query(KycVerification)
+        .filter(KycVerification.user_id == current.id)
+        .order_by(KycVerification.submitted_at.desc())
+        .first()
+    )
+    if not verification:
+        raise HTTPException(status_code=404, detail="No KYC record")
+    return {
+        "id": verification.id,
+        "status": verification.status,
+        "kyc_level": verification.kyc_level,
+    }
+
+
+@router.post("/kyc/documents")
+def upload_kyc_document(
+    file: UploadFile,
+    document_type: str = Form(...),
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    verification = (
+        db.query(KycVerification)
+        .filter(KycVerification.user_id == current.id, KycVerification.status == "pending")
+        .order_by(KycVerification.submitted_at.desc())
+        .first()
+    )
+    if not verification:
+        raise HTTPException(status_code=400, detail="No pending KYC application")
+    data = file.file.read()
+    path, key_id = save_encrypted_data(data, "uploads/kyc")
+    ocr = perform_ocr(data)
+    doc = KycDocument(
+        kyc_verification_id=verification.id,
+        document_type=document_type,
+        file_path=path,
+        file_size=len(data),
+        mime_type=file.content_type,
+        encryption_key_id=key_id,
+        ocr_data=ocr,
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return {"id": doc.id}
+
+
+@permission_required("kyc_management", "read")
+@router.get("/admin/identity/kyc/pending")
+def list_pending_kyc(db: Session = Depends(get_db)):
+    verifications = db.query(KycVerification).filter(KycVerification.status == "pending").all()
+    return [
+        {
+            "id": v.id,
+            "user_id": v.user_id,
+            "kyc_level": v.kyc_level,
+            "submitted_at": v.submitted_at.isoformat(),
+        }
+        for v in verifications
+    ]
+
+
+@permission_required("kyc_management", "write")
+@router.put("/admin/identity/kyc/{kyc_id}/approve")
+def approve_kyc(kyc_id: str, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+    verification = db.query(KycVerification).filter(KycVerification.id == kyc_id).first()
+    if not verification:
+        raise HTTPException(status_code=404, detail="KYC record not found")
+    verification.status = "approved"
+    verification.reviewed_at = datetime.utcnow()
+    verification.reviewed_by = current.id
+    db.commit()
+    return {"status": verification.status}
+
+
+@permission_required("kyc_management", "write")
+@router.put("/admin/identity/kyc/{kyc_id}/reject")
+def reject_kyc(
+    kyc_id: str,
+    reason: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    verification = db.query(KycVerification).filter(KycVerification.id == kyc_id).first()
+    if not verification:
+        raise HTTPException(status_code=404, detail="KYC record not found")
+    verification.status = "rejected"
+    verification.reviewed_at = datetime.utcnow()
+    verification.reviewed_by = current.id
+    verification.rejection_reason = reason
+    db.commit()
+    return {"status": verification.status}

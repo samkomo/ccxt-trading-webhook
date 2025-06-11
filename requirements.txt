@@ -18,4 +18,5 @@ passlib[bcrypt]~=1.7
 PyJWT~=2.8
 email-validator~=2.1
 python-multipart~=0.0.9
+cryptography~=45.0
 
