@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     QUEUE_ORDERS: bool = False
     STATIC_API_KEY: str = ""
     REQUIRE_API_KEY: bool = False
+    DATABASE_URL: str = "sqlite:///identity.db"
 
     model_config = SettingsConfigDict(
         env_file=".env",
