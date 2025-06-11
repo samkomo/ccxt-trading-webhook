@@ -5,7 +5,7 @@ This backlog is organized using ZenHub's five-level hierarchy: **Initiative → 
 ## Initiative: MVP Launch of the Copy-Trading Platform
 Deliver a minimal but reliable platform with secure authentication, automated trade replication, monitoring, and compliance features.
 
-### Project: Identity & KYC
+### Project: Identity
 Manage user identity with token authentication and KYC workflows.
 
 #### Epic: Access Token Management
@@ -26,7 +26,7 @@ Collect documents and approve user identity.
 - [ ] Save KYC status on user profile
 - [ ] Admin interface to approve or reject submissions
 
-### Project: Wallet Address Management
+### Project: Wallet
 Handle deposit and withdrawal addresses per exchange.
 
 #### Epic: Address Management
