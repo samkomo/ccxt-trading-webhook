@@ -12,13 +12,14 @@ issue_parser.add_argument("--ttl", type=int, help="Token TTL in seconds", defaul
 revoke_parser = subparsers.add_parser("revoke", help="Revoke an existing token")
 revoke_parser.add_argument("token", help="Token to revoke")
 
-args = parser.parse_args()
+if __name__ == "__main__":
+    args = parser.parse_args()
 
-if args.command == "issue":
-    token = issue_token(ttl=args.ttl)
-    print(token)
-elif args.command == "revoke":
-    revoke_token(args.token)
-    print("revoked")
-else:
-    parser.print_help()
+    if args.command == "issue":
+        token = issue_token(ttl=args.ttl)
+        print(token)
+    elif args.command == "revoke":
+        revoke_token(args.token)
+        print("revoked")
+    else:
+        parser.print_help()
