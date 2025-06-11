@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     STATIC_API_KEY: str = ""
     REQUIRE_API_KEY: bool = False
     DATABASE_URL: str = "sqlite:///identity.db"
+    DOCUMENT_ENCRYPTION_KEY: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
