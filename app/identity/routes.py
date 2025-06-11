@@ -4,8 +4,15 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, date
 from app.db import SessionLocal
-from .models import User
+from .models import (
+    User,
+    Role,
+    Permission,
+    RolePermission,
+    UserRole,
+)
 from .auth import create_jwt, decode_jwt, get_current_user
+from .permissions import permission_required
 import secrets
 
 router = APIRouter(prefix="/api/v1/identity", tags=["identity"])
@@ -67,6 +74,24 @@ class UpdateProfilePayload(BaseModel):
     country_code: str | None = None
     timezone: str | None = None
     language: str | None = None
+
+class RolePayload(BaseModel):
+    name: str
+    display_name: str
+    description: str | None = None
+
+
+class PermissionPayload(BaseModel):
+    name: str
+    display_name: str
+    category: str
+    resource: str
+    action: str
+    description: str | None = None
+
+
+class AssignRolePayload(BaseModel):
+    role_id: str
 
 
 @router.post("/register")
@@ -209,3 +234,83 @@ def delete_account(db: Session = Depends(get_db), current: User = Depends(get_cu
     db.commit()
     return {"message": "account deleted"}
 
+@permission_required("role_management", "read")
+@router.get("/roles")
+def list_roles(db: Session = Depends(get_db)):
+    roles = db.query(Role).all()
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "display_name": r.display_name,
+            "description": r.description,
+        }
+        for r in roles
+    ]
+
+
+@permission_required("role_management", "write")
+@router.post("/roles")
+def create_role(payload: RolePayload, db: Session = Depends(get_db)):
+    role = Role(
+        name=payload.name,
+        display_name=payload.display_name,
+        description=payload.description,
+    )
+    db.add(role)
+    db.commit()
+    db.refresh(role)
+    return {"id": role.id}
+
+
+@permission_required("permission_management", "read")
+@router.get("/permissions")
+def list_permissions(db: Session = Depends(get_db)):
+    perms = db.query(Permission).all()
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "display_name": p.display_name,
+            "resource": p.resource,
+            "action": p.action,
+            "category": p.category,
+            "description": p.description,
+        }
+        for p in perms
+    ]
+
+
+@permission_required("permission_management", "write")
+@router.post("/permissions")
+def create_permission(payload: PermissionPayload, db: Session = Depends(get_db)):
+    perm = Permission(**payload.model_dump())
+    db.add(perm)
+    db.commit()
+    db.refresh(perm)
+    return {"id": perm.id}
+
+
+@permission_required("role_management", "read")
+@router.get("/users/{user_id}/roles")
+def get_user_roles(user_id: str, db: Session = Depends(get_db)):
+    roles = (
+        db.query(UserRole)
+        .filter(UserRole.user_id == user_id, UserRole.is_active == True)
+        .all()
+    )
+    return [r.role_id for r in roles]
+
+
+@permission_required("role_management", "write")
+@router.post("/users/{user_id}/roles")
+def assign_role(user_id: str, payload: AssignRolePayload, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    role = db.query(Role).filter(Role.id == payload.role_id).first()
+    if not user or not role:
+        raise HTTPException(status_code=404, detail="User or role not found")
+    assoc = UserRole(user_id=user_id, role_id=payload.role_id)
+    db.add(assoc)
+    db.commit()
+    db.refresh(assoc)
+    return {"id": assoc.id}
