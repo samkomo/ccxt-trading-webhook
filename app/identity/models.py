@@ -44,9 +44,9 @@ class User(Base, TimestampMixin):
     password_reset_expires_at = Column(DateTime(timezone=True))
     last_login_at = Column(DateTime(timezone=True))
 
-    roles = relationship("UserRole", back_populates="user")
+    roles = relationship("UserRole", back_populates="user", foreign_keys="UserRole.user_id")
     tokens = relationship("ApiToken", back_populates="user")
-    kyc_verifications = relationship("KycVerification", back_populates="user")
+    kyc_verifications = relationship("KycVerification", back_populates="user", foreign_keys="KycVerification.user_id")
 
     def set_password(self, password: str) -> None:
         self.password_hash = pwd_context.hash(password)
@@ -168,7 +168,7 @@ class KycVerification(Base, TimestampMixin):
     rejection_reason = Column(Text)
     compliance_score = Column(Integer)
 
-    user = relationship("User", back_populates="kyc_verifications")
+    user = relationship("User", back_populates="kyc_verifications", foreign_keys=[user_id])
     documents = relationship("KycDocument", back_populates="verification")
 
 

@@ -10,7 +10,7 @@ Supports:
 import hmac
 import hashlib
 import time
-from fastapi import Request, HTTPException, status
+from fastapi import Request, HTTPException, status, Depends
 from config.settings import settings
 from .token_store import is_token_valid, register_nonce
 import logging
@@ -112,3 +112,39 @@ def verify_token(token: Optional[str], nonce: Optional[str]) -> bool:
         return False
 
     return True
+
+# JWT utilities for login sessions and email verification
+import jwt
+from datetime import datetime, timedelta
+from app.db import SessionLocal
+from .models import User
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+JWT_ALGORITHM = "HS256"
+http_bearer = HTTPBearer(auto_error=False)
+
+
+def create_jwt(subject: str, expires_in: int = 3600) -> str:
+    payload = {"sub": subject, "exp": datetime.utcnow() + timedelta(seconds=expires_in)}
+    return jwt.encode(payload, settings.WEBHOOK_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def decode_jwt(token: str) -> Optional[str]:
+    try:
+        payload = jwt.decode(token, settings.WEBHOOK_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload.get("sub")
+    except jwt.PyJWTError:
+        return None
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)) -> User:
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
+    user_id = decode_jwt(credentials.credentials)
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    with SessionLocal() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        return user
