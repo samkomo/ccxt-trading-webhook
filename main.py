@@ -11,6 +11,7 @@ from app.identity.routes import router as identity_router
 import logging
 from app.utils import setup_logger
 from app.rate_limiter import limiter
+from app.https_middleware import HttpsMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -27,6 +28,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(MetricsMiddleware)
 app.add_middleware(PermissionMiddleware)
+app.add_middleware(HttpsMiddleware)
 
 # Mount application routes
 app.include_router(webhook_router)

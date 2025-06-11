@@ -53,6 +53,7 @@ class User(Base, TimestampMixin):
     email_verification_token = Column(String(100))
     password_reset_token = Column(String(100))
     password_reset_expires_at = Column(DateTime(timezone=True))
+    mfa_secret = Column(String(32))
     last_login_at = Column(DateTime(timezone=True))
 
     roles = relationship(

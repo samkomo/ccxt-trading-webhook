@@ -19,4 +19,6 @@ PyJWT~=2.8
 email-validator~=2.1
 python-multipart~=0.0.9
 cryptography~=45.0
+pyotp~=2.9
+clamd~=1.0
 
