@@ -3,6 +3,7 @@ import os
 from typing import Optional
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 from datetime import datetime, timedelta, date
 from app.db import SessionLocal
 from .models import (
@@ -14,6 +15,7 @@ from .models import (
     ApiToken,
     KycVerification,
     KycDocument,
+    PermissionAuditLog,
 )
 from .auth import create_jwt, decode_jwt, get_current_user
 from .permissions import permission_required
@@ -563,3 +565,41 @@ def reject_kyc(
     verification.rejection_reason = reason
     db.commit()
     return {"status": verification.status}
+
+
+@permission_required("kyc_management", "read")
+@router.get("/admin/identity/compliance")
+def compliance_report(db: Session = Depends(get_db)):
+    """Aggregate KYC stats and permission audit activity."""
+    kyc_totals = {
+        s: db.query(func.count(KycVerification.id))
+        .filter(KycVerification.status == s)
+        .scalar()
+        for s in ["pending", "approved", "rejected"]
+    }
+    kyc_by_level = {
+        level: count
+        for level, count in db.query(
+            KycVerification.kyc_level, func.count(KycVerification.id)
+        ).group_by(KycVerification.kyc_level)
+    }
+    audit_data = [
+        {
+            "resource": r,
+            "action": a,
+            "access_granted": g,
+            "count": c,
+        }
+        for r, a, g, c in db.query(
+            PermissionAuditLog.resource,
+            PermissionAuditLog.action,
+            PermissionAuditLog.access_granted,
+            func.count(PermissionAuditLog.id),
+        )
+        .group_by(
+            PermissionAuditLog.resource,
+            PermissionAuditLog.action,
+            PermissionAuditLog.access_granted,
+        )
+    ]
+    return {"kyc": {**kyc_totals, "by_level": kyc_by_level}, "permission_audit": audit_data}

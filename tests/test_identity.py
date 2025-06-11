@@ -14,7 +14,15 @@ os.environ.setdefault("DEFAULT_API_SECRET", "secret")
 os.environ["DATABASE_URL"] = "sqlite:///test_identity.db"
 
 from main import app
-from app.db import Base, engine
+from app.db import Base, engine, SessionLocal
+from app.identity.models import (
+    Permission,
+    Role,
+    RolePermission,
+    UserRole,
+    KycVerification,
+    PermissionAuditLog,
+)
 
 if os.path.exists("test_identity.db"):
     os.remove("test_identity.db")
@@ -155,3 +163,62 @@ async def test_token_endpoints(tmp_path):
 
         resp = await client.get("/api/v1/identity/tokens", headers=headers)
         assert resp.json()[0]["is_revoked"] is True
+
+
+@pytest.mark.asyncio
+async def test_compliance_report(tmp_path):
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # create user and login
+        reg = await client.post("/api/v1/identity/register", json={"email": "d@example.com", "password": "pass"})
+        user_id = reg.json()["user_id"]
+        login = await client.post(
+            "/api/v1/identity/login",
+            json={"email": "d@example.com", "password": "pass"},
+        )
+        token = login.json()["access_token"]
+
+        # grant permission
+        with SessionLocal() as db:
+            perm = Permission(
+                name="kyc_read",
+                display_name="KYC Read",
+                category="kyc",
+                resource="kyc_management",
+                action="read",
+            )
+            db.add(perm)
+            db.commit()
+            db.refresh(perm)
+            role = Role(name="admin", display_name="Admin")
+            db.add(role)
+            db.commit()
+            db.refresh(role)
+            rp = RolePermission(role_id=role.id, permission_id=perm.id)
+            db.add(rp)
+            db.commit()
+            ur = UserRole(user_id=user_id, role_id=role.id)
+            db.add(ur)
+
+            db.add_all([
+                KycVerification(user_id=user_id, kyc_level="basic", status="pending"),
+                KycVerification(user_id=user_id, kyc_level="basic", status="approved"),
+                KycVerification(user_id=user_id, kyc_level="basic", status="rejected"),
+            ])
+            db.add_all([
+                PermissionAuditLog(user_id=user_id, action="read", resource="kyc_management", access_granted=True),
+                PermissionAuditLog(user_id=user_id, action="read", resource="kyc_management", access_granted=False),
+            ])
+            db.commit()
+
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = await client.get(
+            "/api/v1/identity/admin/identity/compliance",
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["kyc"]["approved"] == 1
+        assert data["kyc"]["pending"] == 1
+        assert data["kyc"]["rejected"] == 1
+        assert len(data["permission_audit"]) >= 2
+

@@ -33,4 +33,5 @@ This page details the major features of the copy-trading webhook platform. The c
 
 ## Compliance (`app.compliance`)
 - **Audit logs** – Track token issuance and nonce usage with cleanup and export options.
+- **Compliance report** – Aggregates KYC status and permission audit data via `/admin/identity/compliance`.
 

@@ -190,6 +190,9 @@ PUT    /api/v1/admin/identity/kyc/{id}/reject  - Reject KYC
 GET    /api/v1/admin/identity/compliance    - Compliance reporting
 ```
 
+The compliance report aggregates overall KYC status counts and summarizes
+permission audit log activity for administrators.
+
 ### 5. Security Considerations
 
 #### 5.1 Token Security
