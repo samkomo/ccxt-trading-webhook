@@ -3,7 +3,7 @@
 
 ### 1. Overview
 
-The Wallet module manages exchange account deposit addresses for the copy-trading platform through CCXT integration. It provides multi-user support by imaging different exchange accounts and managing their associated deposit addresses across various supported exchanges.
+The Wallet module manages exchange account deposit addresses for the copy-trading platform through CCXT integration. It provides multi-user support by imaging different exchange accounts and managing their associated deposit addresses across various supported exchanges. The module integrates with the Identity module's role-based access control system for secure operations.
 
 ### 2. Module Scope
 
@@ -13,6 +13,7 @@ The Wallet module manages exchange account deposit addresses for the copy-tradin
 - User-to-exchange account mapping and isolation
 - Exchange API credential management
 - Address synchronization with exchange platforms
+- Role-based access control integration
 
 **Out of Scope:**
 - Direct blockchain network integration
@@ -20,6 +21,7 @@ The Wallet module manages exchange account deposit addresses for the copy-tradin
 - Withdrawal processing and transaction execution
 - Portfolio balance calculations (handled by trading module)
 - Fiat currency operations
+- User role management (handled by Identity module)
 
 ### 3. Core Features
 
@@ -34,6 +36,12 @@ The Wallet module manages exchange account deposit addresses for the copy-tradin
 - Refresh addresses from exchange APIs
 - Address validation through exchange verification
 - Multi-exchange address management
+
+**Required Permissions:**
+- `wallet_management:read` - View addresses and exchange accounts
+- `wallet_management:write` - Create, update, delete addresses
+- `wallet_management:sync` - Synchronize addresses with exchanges
+- `wallet_management:admin` - Administrative operations on all accounts
 
 **Supported Address Operations:**
 - **Create:** Fetch new deposit addresses from exchanges via CCXT
@@ -89,6 +97,8 @@ CREATE TABLE exchange_accounts (
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
     UNIQUE(user_id, exchange_id, account_name),
     INDEX idx_user_exchanges (user_id, is_active),
     INDEX idx_exchange_sync (exchange_id, last_sync_at)
@@ -114,6 +124,8 @@ CREATE TABLE exchange_deposit_addresses (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     deleted_at TIMESTAMP WITH TIME ZONE,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
     UNIQUE(exchange_account_id, currency, address),
     INDEX idx_user_addresses (user_id, is_active),
     INDEX idx_exchange_currency (exchange_id, currency),
@@ -133,6 +145,7 @@ CREATE TABLE supported_exchanges (
     requires_passphrase BOOLEAN DEFAULT FALSE,
     sandbox_available BOOLEAN DEFAULT FALSE,
     supported_currencies TEXT[], -- Array of supported currency codes
+    required_permissions JSONB DEFAULT '{}', -- Permissions needed per operation
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -143,6 +156,7 @@ CREATE TABLE address_sync_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     exchange_account_id UUID NOT NULL REFERENCES exchange_accounts(id),
     user_id UUID NOT NULL REFERENCES users(id),
+    initiated_by UUID NOT NULL REFERENCES users(id),
     sync_type VARCHAR(50) NOT NULL, -- 'full', 'incremental', 'single_currency'
     currencies_synced TEXT[],
     addresses_added INTEGER DEFAULT 0,
@@ -153,7 +167,8 @@ CREATE TABLE address_sync_log (
     error_details JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     INDEX idx_sync_history (exchange_account_id, created_at),
-    INDEX idx_user_sync (user_id, created_at)
+    INDEX idx_user_sync (user_id, created_at),
+    INDEX idx_initiated_sync (initiated_by, created_at)
 );
 
 -- Address Activity Log
@@ -161,6 +176,7 @@ CREATE TABLE address_activity_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     address_id UUID NOT NULL REFERENCES exchange_deposit_addresses(id),
     user_id UUID NOT NULL REFERENCES users(id),
+    performed_by UUID NOT NULL REFERENCES users(id),
     action VARCHAR(50) NOT NULL,
     old_values JSONB,
     new_values JSONB,
@@ -168,7 +184,20 @@ CREATE TABLE address_activity_log (
     user_agent TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     INDEX idx_address_activity (address_id, created_at),
-    INDEX idx_user_activity (user_id, created_at)
+    INDEX idx_user_activity (user_id, created_at),
+    INDEX idx_performed_activity (performed_by, created_at)
+);
+
+-- Wallet Permission Requirements
+CREATE TABLE wallet_operation_permissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    operation VARCHAR(100) NOT NULL UNIQUE,
+    required_permission VARCHAR(100) NOT NULL,
+    description TEXT,
+    resource_level VARCHAR(50) DEFAULT 'user', -- 'user', 'account', 'system'
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
 
@@ -176,244 +205,189 @@ CREATE TABLE address_activity_log (
 
 **Exchange Account Management:**
 ```
-POST   /api/v1/wallet/exchanges              - Add new exchange account
-GET    /api/v1/wallet/exchanges              - List user's exchange accounts
-GET    /api/v1/wallet/exchanges/{id}         - Get exchange account details
-PUT    /api/v1/wallet/exchanges/{id}         - Update exchange account
-DELETE /api/v1/wallet/exchanges/{id}         - Remove exchange account
-POST   /api/v1/wallet/exchanges/{id}/test    - Test exchange API connection
+POST   /api/v1/wallet/exchanges              - Add new exchange account [wallet_management:write]
+GET    /api/v1/wallet/exchanges              - List user's exchange accounts [wallet_management:read]
+GET    /api/v1/wallet/exchanges/{id}         - Get exchange account details [wallet_management:read]
+PUT    /api/v1/wallet/exchanges/{id}         - Update exchange account [wallet_management:write]
+DELETE /api/v1/wallet/exchanges/{id}         - Remove exchange account [wallet_management:write]
+POST   /api/v1/wallet/exchanges/{id}/test    - Test exchange API connection [wallet_management:read]
 ```
 
 **Address CRUD Operations:**
 ```
-POST   /api/v1/wallet/addresses              - Create/fetch new deposit address
-GET    /api/v1/wallet/addresses              - List user's addresses
-GET    /api/v1/wallet/addresses/{id}         - Get specific address details
-PUT    /api/v1/wallet/addresses/{id}         - Update address metadata
-DELETE /api/v1/wallet/addresses/{id}         - Remove address
-POST   /api/v1/wallet/addresses/sync         - Sync addresses from exchanges
+POST   /api/v1/wallet/addresses              - Create/fetch new deposit address [wallet_management:write]
+GET    /api/v1/wallet/addresses              - List user's addresses [wallet_management:read]
+GET    /api/v1/wallet/addresses/{id}         - Get specific address details [wallet_management:read]
+PUT    /api/v1/wallet/addresses/{id}         - Update address metadata [wallet_management:write]
+DELETE /api/v1/wallet/addresses/{id}         - Remove address [wallet_management:write]
+POST   /api/v1/wallet/addresses/sync         - Sync addresses from exchanges [wallet_management:sync]
 ```
 
 **Address Management:**
 ```
-POST   /api/v1/wallet/addresses/bulk         - Fetch multiple addresses
-GET    /api/v1/wallet/addresses/history/{id} - Get address activity history
-PUT    /api/v1/wallet/addresses/{id}/refresh - Refresh single address from exchange
-GET    /api/v1/wallet/addresses/by-currency/{currency} - Get addresses by currency
+POST   /api/v1/wallet/addresses/bulk         - Fetch multiple addresses [wallet_management:write]
+GET    /api/v1/wallet/addresses/history/{id} - Get address activity history [wallet_management:read]
+PUT    /api/v1/wallet/addresses/{id}/refresh - Refresh single address from exchange [wallet_management:sync]
+GET    /api/v1/wallet/addresses/by-currency/{currency} - Get addresses by currency [wallet_management:read]
 ```
 
 **Exchange Information:**
 ```
-GET    /api/v1/wallet/exchanges/supported    - List supported exchanges
-GET    /api/v1/wallet/exchanges/{exchange_id}/currencies - Get supported currencies
-GET    /api/v1/wallet/exchanges/{exchange_id}/info - Get exchange information
+GET    /api/v1/wallet/exchanges/supported    - List supported exchanges [public]
+GET    /api/v1/wallet/exchanges/{exchange_id}/currencies - Get supported currencies [wallet_management:read]
+GET    /api/v1/wallet/exchanges/{exchange_id}/info - Get exchange information [wallet_management:read]
 ```
 
-**Admin Endpoints:**
+**Administrative Endpoints:**
 ```
-GET    /api/v1/admin/wallet/exchanges        - List all exchange accounts
-GET    /api/v1/admin/wallet/sync-status      - Get sync status across all accounts
-POST   /api/v1/admin/wallet/sync/force       - Force sync for specific accounts
-GET    /api/v1/admin/wallet/analytics        - Exchange usage analytics
+GET    /api/v1/admin/wallet/exchanges        - List all exchange accounts [wallet_management:admin]
+GET    /api/v1/admin/wallet/sync-status      - Get sync status across all accounts [wallet_management:admin]
+POST   /api/v1/admin/wallet/sync/force       - Force sync for specific accounts [wallet_management:admin]
+GET    /api/v1/admin/wallet/analytics        - Exchange usage analytics [wallet_management:admin]
+GET    /api/v1/admin/wallet/users/{id}/accounts - Get user's exchange accounts [wallet_management:admin]
 ```
 
-### 5. CCXT Integration Architecture
+### 5. Permission Integration
 
-#### 5.1 Exchange Client Management
+#### 5.1 Permission Validation Middleware
 
 ```javascript
-// Exchange client factory with user isolation
-class ExchangeClientManager {
-  constructor() {
-    this.clients = new Map(); // user_id:exchange_id -> ccxt_instance
-    this.rateLimiters = new Map();
-  }
-
-  async getClient(userId, exchangeAccountId) {
-    const key = `${userId}:${exchangeAccountId}`;
-    
-    if (!this.clients.has(key)) {
-      const account = await this.getExchangeAccount(exchangeAccountId);
-      const client = this.createCCXTClient(account);
-      this.clients.set(key, client);
-    }
-    
-    return this.clients.get(key);
-  }
-
-  createCCXTClient(account) {
-    const ExchangeClass = ccxt[account.exchange_id];
-    return new ExchangeClass({
-      apiKey: decrypt(account.api_key_encrypted),
-      secret: decrypt(account.api_secret_encrypted),
-      password: account.api_passphrase_encrypted ? 
-                decrypt(account.api_passphrase_encrypted) : undefined,
-      sandbox: account.sandbox_mode,
-      enableRateLimit: true,
-      rateLimit: this.getRateLimit(account.exchange_id)
-    });
-  }
-}
-```
-
-#### 5.2 Address Synchronization Service
-
-```javascript
-class AddressSyncService {
-  async syncAddresses(exchangeAccountId, currencies = null) {
-    const client = await this.exchangeManager.getClient(userId, exchangeAccountId);
-    const syncLog = await this.createSyncLog(exchangeAccountId, currencies);
-    
+// Wallet-specific permission middleware
+const requireWalletPermission = (operation, resourceLevel = 'user') => {
+  return async (req, res, next) => {
     try {
-      const supportedCurrencies = currencies || 
-        await this.getSupportedCurrencies(client);
+      const user = req.user;
+      const permissionRequired = await getOperationPermission(operation);
       
-      for (const currency of supportedCurrencies) {
-        try {
-          const address = await client.fetchDepositAddress(currency);
-          await this.upsertAddress(exchangeAccountId, currency, address);
-          syncLog.addresses_added++;
-        } catch (error) {
-          await this.logSyncError(syncLog, currency, error);
+      // Check if user has required permission
+      const hasPermission = await checkUserPermission(
+        user.id, 
+        'wallet_management', 
+        permissionRequired
+      );
+      
+      // Additional resource-level checks
+      if (hasPermission && resourceLevel !== 'public') {
+        const resourceAccess = await validateResourceAccess(
+          user.id, 
+          req.params, 
+          resourceLevel
+        );
+        
+        if (!resourceAccess) {
+          return res.status(403).json({
+            error: {
+              code: 'RESOURCE_ACCESS_DENIED',
+              message: 'Access denied to requested resource',
+              timestamp: new Date().toISOString()
+            }
+          });
         }
       }
       
-      syncLog.status = 'success';
+      // Log permission check
+      await logWalletPermissionCheck(
+        user.id, 
+        operation, 
+        permissionRequired, 
+        hasPermission
+      );
+      
+      if (!hasPermission) {
+        return res.status(403).json({
+          error: {
+            code: 'INSUFFICIENT_WALLET_PERMISSIONS',
+            message: `Access denied: requires wallet_management:${permissionRequired}`,
+            operation: operation,
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+      
+      next();
     } catch (error) {
-      syncLog.status = 'failed';
-      syncLog.error_details = { error: error.message };
+      next(error);
+    }
+  };
+};
+
+// Usage examples
+app.post('/api/v1/wallet/exchanges', 
+  requireWalletPermission('create_exchange_account', 'user'),
+  createExchangeAccountController
+);
+
+app.get('/api/v1/admin/wallet/analytics', 
+  requireWalletPermission('admin_analytics', 'system'),
+  getWalletAnalyticsController
+);
+```
+
+#### 5.2 Resource Access Validation
+
+```javascript
+class WalletAccessValidator {
+  async validateResourceAccess(userId, params, resourceLevel) {
+    switch (resourceLevel) {
+      case 'user':
+        return await this.validateUserResourceAccess(userId, params);
+      case 'account':
+        return await this.validateAccountResourceAccess(userId, params);
+      case 'system':
+        return await this.validateSystemResourceAccess(userId);
+      default:
+        return true; // Public access
+    }
+  }
+  
+  async validateUserResourceAccess(userId, params) {
+    // Ensure user can only access their own resources
+    if (params.user_id && params.user_id !== userId) {
+      const hasAdminPermission = await checkUserPermission(
+        userId, 
+        'wallet_management', 
+        'admin'
+      );
+      return hasAdminPermission;
     }
     
-    await this.updateSyncLog(syncLog);
+    // Validate exchange account ownership
+    if (params.exchange_account_id) {
+      const account = await getExchangeAccount(params.exchange_account_id);
+      return account && account.user_id === userId;
+    }
+    
+    // Validate address ownership
+    if (params.address_id) {
+      const address = await getDepositAddress(params.address_id);
+      return address && address.user_id === userId;
+    }
+    
+    return true;
   }
-}
-```
-
-### 6. Security Considerations
-
-#### 6.1 API Credential Security
-- AES-256 encryption for API keys and secrets
-- Secure key management with rotation capabilities
-- Environment-specific encryption keys
-- Hardware security module (HSM) integration
-- API credential validation and testing
-
-#### 6.2 Multi-User Isolation
-- User-specific exchange client instances
-- Sandboxed API operations per user
-- Rate limiting per user per exchange
-- Access control and permission validation
-- Audit logging for all operations
-
-#### 6.3 Exchange API Security
-- SSL/TLS enforcement for all API calls
-- API key permission validation
-- Retry mechanisms with exponential backoff
-- Error handling and graceful degradation
-- Monitoring for API abuse patterns
-
-### 7. Performance Requirements
-
-- Address fetching: < 2s per currency per exchange
-- Address listing: < 200ms response time (paginated)
-- Address sync: < 30s for full account sync
-- Exchange connection test: < 5s response time
-- Concurrent operations: 100+ requests/second per user
-- Database queries: < 50ms for address lookups
-- API rate limiting: Respect exchange-specific limits
-
-### 8. Monitoring & Observability
-
-#### 8.1 Key Metrics
-- Address sync success/failure rates by exchange
-- API call response times and error rates
-- Exchange account connection status
-- Address creation and update frequencies
-- Rate limiting incidents
-- User activity patterns by exchange
-
-#### 8.2 Alerting
-- Exchange API connection failures
-- Sync operation failures exceeding threshold
-- Rate limiting violations
-- API credential expiration warnings
-- Unusual address activity patterns
-- Exchange service disruptions
-
-### 9. Error Handling
-
-#### 9.1 Common Error Scenarios
-- Exchange API connection failures
-- Invalid or expired API credentials
-- Rate limiting exceeded
-- Unsupported currency/exchange combinations
-- Network connectivity issues
-- Exchange maintenance periods
-- Insufficient API permissions
-
-#### 9.2 Error Response Format
-```json
-{
-  "error": {
-    "code": "EXCHANGE_API_ERROR",
-    "message": "Failed to fetch deposit address from exchange",
-    "details": {
-      "exchange": "binance",
-      "currency": "BTC",
-      "exchange_error": "Invalid API key",
-      "retry_after": 300
-    },
-    "timestamp": "2024-01-20T14:25:00Z"
+  
+  async validateAccountResourceAccess(userId, params) {
+    // Check if user has access to specific exchange account
+    if (params.exchange_account_id) {
+      const account = await getExchangeAccount(params.exchange_account_id);
+      if (!account) return false;
+      
+      // Owner has access
+      if (account.user_id === userId) return true;
+      
+      // Check if user has delegation or admin permissions
+      return await checkAccountDelegation(userId, params.exchange_account_id);
+    }
+    
+    return false;
   }
-}
-```
-
-### 10. Integration Points
-
-#### 10.1 Internal Dependencies
-- **Identity Module:** User authentication and authorization
-- **Trading Engine:** Exchange account validation for trading
-- **Notification Service:** Sync status and error notifications
-- **Admin Dashboard:** Exchange account and address management
-- **Audit Service:** Comprehensive logging of wallet operations
-
-#### 10.2 External Services
-- **CCXT Library:** Unified exchange API integration
-- **Exchange APIs:** Direct integration with exchange platforms
-- **Encryption Services:** API credential protection
-- **Monitoring Services:** Exchange connectivity monitoring
-- **Rate Limiting Services:** API usage control
-
-### 11. Future Enhancements
-
-- Real-time address balance monitoring
-- Multi-signature address support
-- Address pool management for high-volume users
-- Advanced exchange account analytics
-- Automated API credential rotation
-- Integration with additional exchanges
-- Address whitelisting and blacklisting
-- Cross-exchange address management
-
-### 12. Testing Strategy
-
-#### 12.1 Unit Tests
-- CCXT client initialization and configuration
-- Address CRUD operations
-- Exchange account management
-- API credential encryption/decryption
-- Error handling and retry logic
-
-#### 12.2 Integration Tests
-- End-to-end address synchronization
-- Exchange API connectivity tests
-- Multi-user isolation verification
-- Rate limiting compliance
-- Error recovery scenarios
-
-#### 12.3 Exchange-Specific Tests
-- Address format validation per exchange
-- Currency support verification
-- API rate limit adherence
-- Sandbox mode functionality
-- Error message handling per exchange
+  
+  async validateSystemResourceAccess(userId) {
+    // Only users with admin permissions can access system-level resources
+    return await checkUserPermission(
+      userId, 
+      'wallet_management', 
+      'admin'
+    );
+  }
+} 
