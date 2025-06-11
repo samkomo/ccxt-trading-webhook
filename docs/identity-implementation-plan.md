@@ -1,6 +1,6 @@
 # Identity Module Implementation Plan
 
-This plan outlines the high‑level steps required to implement the `app.identity` module based on the [design document](identity-module-design.md).
+This plan outlines the high‑level steps required to implement the `app.identity` module based on the [design document](identity_module_design.md).
 
 ## 1. Database Setup
 - Create migrations for the `users`, `api_tokens`, `kyc_verifications` and `kyc_documents` tables.

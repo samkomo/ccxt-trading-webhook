@@ -5,11 +5,12 @@ This page details the major features of the copy-trading webhook platform. The c
 ## Identity (`app.identity`)
 - **Token management** – Issue and revoke API tokens with TTL support.
 - **KYC verification** – Accept document uploads and allow admin approval.
-- [Design Doc](identity-module-design.md) – Detailed architecture and schema.
+ - [Design Doc](identity_module_design.md) – Detailed architecture and schema.
 - [Implementation Plan](identity-implementation-plan.md) – Step-by-step rollout.
 
 ## Wallet (`app.wallet`)
 - **Address CRUD** – Add, list, update, and delete deposit addresses.
+- [Design Doc](wallet_module_design.md) – Exchange address management architecture.
 
 ## Marketplace (`app.marketplace`)
 - **Strategy catalog** – Paginated list of master strategies with search.

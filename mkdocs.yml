@@ -15,7 +15,8 @@ nav:
   - Reference:
       - API Reference: api-reference.md
   - Design:
-      - Identity Module: identity-module-design.md
+      - Identity Module: identity_module_design.md
+      - Wallet Module: wallet_module_design.md
       - Identity Implementation Plan: identity-implementation-plan.md
   - Deployment:
       - Deployment Guide: deployment.md
