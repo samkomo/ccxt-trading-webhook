@@ -11,6 +11,7 @@ nav:
       - Getting Started: getting-started.md
       - Authentication: authentication.md
       - TradingView Integration: tradingview.md
+      - Feature Overview: features.md
   - Reference:
       - API Reference: api-reference.md
   - Deployment:
