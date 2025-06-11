@@ -15,6 +15,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from app.dashboard.metrics import MetricsMiddleware, metrics
+from app.identity.permissions import PermissionMiddleware
 
 # Initialize application and configure logging
 app = FastAPI()
@@ -25,6 +26,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(MetricsMiddleware)
+app.add_middleware(PermissionMiddleware)
 
 # Mount application routes
 app.include_router(webhook_router)
