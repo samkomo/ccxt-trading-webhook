@@ -7,6 +7,7 @@ webhook service.
 
 from fastapi import FastAPI
 from app.api.routes import router as webhook_router
+from app.identity.routes import router as identity_router
 import logging
 from app.utils import setup_logger
 from app.rate_limiter import limiter
@@ -27,6 +28,7 @@ app.add_middleware(MetricsMiddleware)
 
 # Mount application routes
 app.include_router(webhook_router)
+app.include_router(identity_router)
 
 @app.get("/")
 async def health_check() -> dict:
