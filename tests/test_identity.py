@@ -46,3 +46,44 @@ async def test_register_verify_login_flow(tmp_path):
         resp = await client.post("/api/v1/identity/login", json={"email": "a@example.com", "password": "newpass"})
         assert resp.status_code == 200
 
+
+@pytest.mark.asyncio
+async def test_profile_crud_and_delete(tmp_path):
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # register and login
+        await client.post("/api/v1/identity/register", json={"email": "b@example.com", "password": "pass"})
+        login = await client.post("/api/v1/identity/login", json={"email": "b@example.com", "password": "pass"})
+        token = login.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # get profile
+        resp = await client.get("/api/v1/identity/profile", headers=headers)
+        assert resp.status_code == 200
+        assert resp.json()["email"] == "b@example.com"
+
+        # update profile
+        resp = await client.put(
+            "/api/v1/identity/profile",
+            json={"first_name": "Bob"},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["first_name"] == "Bob"
+
+        # upload picture
+        files = {"file": ("pic.txt", b"img", "text/plain")}
+        resp = await client.post(
+            "/api/v1/identity/profile/picture",
+            files=files,
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        assert "profile_picture_url" in resp.json()
+
+        # delete account
+        resp = await client.delete("/api/v1/identity/account", headers=headers)
+        assert resp.status_code == 200
+        # access after deletion should fail
+        resp = await client.get("/api/v1/identity/profile", headers=headers)
+        assert resp.status_code == 401
+

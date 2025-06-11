@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, UploadFile
+import os
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from app.db import SessionLocal
 from .models import (
     User,
@@ -49,6 +50,30 @@ class ResetPayload(BaseModel):
     token: str
     new_password: str
 
+
+class ProfileResponse(BaseModel):
+    id: str
+    email: EmailStr
+    username: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    phone_number: str | None = None
+    date_of_birth: date | None = None
+    country_code: str | None = None
+    timezone: str | None = None
+    language: str | None = None
+    profile_picture_url: str | None = None
+
+
+class UpdateProfilePayload(BaseModel):
+    username: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    phone_number: str | None = None
+    date_of_birth: date | None = None
+    country_code: str | None = None
+    timezone: str | None = None
+    language: str | None = None
 
 class RolePayload(BaseModel):
     name: str
@@ -152,6 +177,62 @@ def reset_password(payload: ResetPayload, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "password updated"}
 
+
+@router.get("/profile", response_model=ProfileResponse)
+def get_profile(current: User = Depends(get_current_user)):
+    return ProfileResponse(
+        id=current.id,
+        email=current.email,
+        username=current.username,
+        first_name=current.first_name,
+        last_name=current.last_name,
+        phone_number=current.phone_number,
+        date_of_birth=current.date_of_birth,
+        country_code=current.country_code,
+        timezone=current.timezone,
+        language=current.language,
+        profile_picture_url=current.profile_picture_url,
+    )
+
+
+@router.put("/profile", response_model=ProfileResponse)
+def update_profile(
+    payload: UpdateProfilePayload,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    user = db.query(User).filter(User.id == current.id).first()
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(user, field, value)
+    db.commit()
+    db.refresh(user)
+    return get_profile(user)
+
+
+@router.post("/profile/picture")
+def upload_profile_picture(
+    file: UploadFile,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    directory = "uploads/profile_pictures"
+    os.makedirs(directory, exist_ok=True)
+    filename = f"{current.id}_{file.filename}"
+    path = os.path.join(directory, filename)
+    with open(path, "wb") as out:
+        out.write(file.file.read())
+    user = db.query(User).filter(User.id == current.id).first()
+    user.profile_picture_url = path
+    db.commit()
+    return {"profile_picture_url": user.profile_picture_url}
+
+
+@router.delete("/account")
+def delete_account(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+    user = db.query(User).filter(User.id == current.id).first()
+    db.delete(user)
+    db.commit()
+    return {"message": "account deleted"}
 
 @permission_required("role_management", "read")
 @router.get("/roles")
