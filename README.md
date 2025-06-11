@@ -15,6 +15,21 @@ Full setup and usage instructions live in the [docs](https://your-username.githu
 - 📑 **JSON structured logging** for easy ingestion
 - 📊 **Prometheus metrics** available at `/metrics`
 
+## Project Structure
+The main application code lives inside the `app/` package and is organized into
+domain-driven subpackages:
+
+- `api` – FastAPI route declarations
+- `identity` – authentication helpers and token utilities
+- `wallet` – deposit address management
+- `marketplace` – strategy catalog CRUD
+- `subscription` – follower subscriptions
+- `execution` – CCXT session management and order placement
+- `ledger` – trade history and export helpers
+- `risk` – per-user risk limits
+- `dashboard` – Prometheus metrics endpoint
+- `compliance` – audit logging tools
+
 ## Development
 Install dependencies and run the tests:
 ```bash
