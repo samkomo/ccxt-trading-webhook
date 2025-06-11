@@ -12,7 +12,7 @@ import hashlib
 import time
 from fastapi import Request, HTTPException, status
 from config.settings import settings
-from app.identity.token_store import is_token_valid, register_nonce
+from .token_store import is_token_valid, register_nonce
 import logging
 from typing import Optional, Dict
 
