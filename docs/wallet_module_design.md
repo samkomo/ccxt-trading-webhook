@@ -3,391 +3,506 @@
 
 ### 1. Overview
 
-The Wallet module manages exchange account deposit addresses for the copy-trading platform through CCXT integration. It provides multi-user support by imaging different exchange accounts and managing their associated deposit addresses across various supported exchanges. The module integrates with the Identity module's role-based access control system for secure operations.
+The Wallet module manages a hybrid liquidity provider system where developers act as strategy managers with exchange accounts, while regular users participate through M-Pesa deposits in KES. The module handles address management for both M-Pesa settlements and developer exchange accounts, facilitating seamless copy-trading between traditional Kenyan payments and cryptocurrency markets.
 
 ### 2. Module Scope
 
 **Primary Responsibilities:**
-- Exchange account deposit address management (CRUD operations)
-- Multi-exchange integration via CCXT library
-- User-to-exchange account mapping and isolation
-- Exchange API credential management
-- Address synchronization with exchange platforms
-- Role-based access control integration
+- M-Pesa wallet address management for regular users and developers
+- Developer exchange account deposit address management via CCXT
+- Liquidity pool address coordination and settlement tracking
+- KES-denominated position tracking for regular users
+- Settlement address management between pools and M-Pesa accounts
 
 **Out of Scope:**
-- Direct blockchain network integration
-- Private key generation or management
-- Withdrawal processing and transaction execution
-- Portfolio balance calculations (handled by trading module)
-- Fiat currency operations
-- User role management (handled by Identity module)
+- KES to crypto conversion logic (handled by developers externally)
+- Trading strategy execution (handled by trading engine)
+- Profit calculation and distribution (handled by settlements module)
+- M-Pesa API integration (handled by payments module)
 
-### 3. Core Features
+### 3. User Types & Address Management
 
-#### 3.1 Address CRUD Operations
+#### 3.1 Regular Users (Non-Technical)
+**Wallet Structure:**
+- Primary M-Pesa wallet address for deposits/withdrawals
+- Virtual KES balance tracking
+- Pool participation addresses (which developer strategies they're following)
+- Settlement addresses for profit distribution
 
-**Purpose:** Manage deposit addresses obtained from various cryptocurrency exchanges through CCXT integration.
+#### 3.2 Developers (Technical Users)
+**Wallet Structure:**
+- M-Pesa settlement address for receiving pooled funds and sending profits
+- Exchange deposit addresses via CCXT integration
+- Pool management addresses for tracking user funds
+- Strategy-specific wallet addresses
 
-**Key Capabilities:**
-- Fetch and store deposit addresses from exchanges
-- List user's exchange deposit addresses
-- Update address metadata and labels
-- Refresh addresses from exchange APIs
-- Address validation through exchange verification
-- Multi-exchange address management
+### 4. Core Features
 
-**Required Permissions:**
-- `wallet_management:read` - View addresses and exchange accounts
-- `wallet_management:write` - Create, update, delete addresses
-- `wallet_management:sync` - Synchronize addresses with exchanges
-- `wallet_management:admin` - Administrative operations on all accounts
+#### 4.1 Address CRUD Operations
+
+**Purpose:** Manage wallet addresses for both user types across M-Pesa and exchange platforms.
+
+**Regular User Address Management:**
+- M-Pesa phone number as primary wallet address
+- Pool participation tracking addresses
+- Settlement history addresses
+- KES balance tracking addresses
+
+**Developer Address Management:**
+- M-Pesa settlement addresses for fund reception
+- Exchange deposit addresses via CCXT for each supported exchange
+- Pool-specific addresses for segregated fund management
+- Strategy wallet addresses for tracking performance
 
 **Supported Address Operations:**
-- **Create:** Fetch new deposit addresses from exchanges via CCXT
-- **Read:** Retrieve cached address details or list multiple addresses
-- **Update:** Modify address labels, status, and user-defined metadata
-- **Delete:** Remove address associations while maintaining audit trail
+- **Create:** Generate M-Pesa addresses, fetch exchange addresses via CCXT
+- **Read:** Retrieve address details, balances, and pool associations
+- **Update:** Modify address metadata, pool associations, settlement preferences
+- **Delete:** Deactivate addresses while maintaining audit trail
 
-#### 3.2 Multi-Exchange Support via CCXT
+#### 4.2 Liquidity Pool Address Management
 
-**Purpose:** Support deposit addresses across major cryptocurrency exchanges.
-
-**Supported Exchanges:**
-- **Binance:** Spot and futures deposit addresses
-- **Coinbase Pro:** Professional trading deposit addresses
-- **Kraken:** Comprehensive deposit address support
-- **Bitfinex:** Multi-currency deposit addresses
-- **Huobi:** Global exchange deposit addresses
-- **KuCoin:** Wide cryptocurrency support
-- **Bybit:** Derivatives and spot deposit addresses
-- **OKX:** Comprehensive trading platform addresses
-
-#### 3.3 Exchange Account Imaging
-
-**Purpose:** Create isolated exchange account instances for different users.
+**Purpose:** Track fund flows between regular users, developers, and exchanges.
 
 **Key Features:**
-- User-specific exchange API credential management
-- Sandboxed exchange account operations
-- Multi-user address isolation
-- Exchange-specific configuration management
-- Rate limiting per user per exchange
-- Error handling and retry mechanisms
+- Pool-specific address generation for each developer strategy
+- Fund tracking from regular users to developer pools
+- Settlement address management for profit distribution
+- Cross-reference between M-Pesa and exchange addresses
+- Pool balance reconciliation addresses
 
-### 4. Technical Architecture
+### 5. Technical Architecture
 
-#### 4.1 Database Schema
+#### 5.1 Database Schema
 
 ```sql
--- Exchange Accounts
-CREATE TABLE exchange_accounts (
+-- User Wallet Addresses
+CREATE TABLE user_wallet_addresses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),
+    user_type VARCHAR(20) NOT NULL, -- 'regular', 'developer'
+    address_type VARCHAR(30) NOT NULL, -- 'mpesa_primary', 'mpesa_settlement', 'exchange_deposit', 'pool_tracking'
+    address_value VARCHAR(255) NOT NULL, -- Phone number for M-Pesa, crypto address for exchanges
+    label VARCHAR(100),
+    is_primary BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    UNIQUE(user_id, address_type, address_value),
+    INDEX idx_user_addresses (user_id, user_type, is_active),
+    INDEX idx_address_lookup (address_value, address_type)
+);
+
+-- Developer Exchange Accounts
+CREATE TABLE developer_exchange_accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    developer_id UUID NOT NULL REFERENCES users(id),
     exchange_id VARCHAR(50) NOT NULL,
     account_name VARCHAR(100) NOT NULL,
     api_key_encrypted TEXT NOT NULL,
     api_secret_encrypted TEXT NOT NULL,
     api_passphrase_encrypted TEXT,
-    sandbox_mode BOOLEAN DEFAULT FALSE,
+    mpesa_settlement_address VARCHAR(15) NOT NULL, -- Phone number
     is_active BOOLEAN DEFAULT TRUE,
     last_sync_at TIMESTAMP WITH TIME ZONE,
-    sync_status VARCHAR(20) DEFAULT 'pending',
-    error_message TEXT,
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_by UUID REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
-    UNIQUE(user_id, exchange_id, account_name),
-    INDEX idx_user_exchanges (user_id, is_active),
-    INDEX idx_exchange_sync (exchange_id, last_sync_at)
+    UNIQUE(developer_id, exchange_id, account_name),
+    INDEX idx_developer_exchanges (developer_id, is_active)
 );
 
--- Exchange Deposit Addresses
+-- Exchange Deposit Addresses (for developers)
 CREATE TABLE exchange_deposit_addresses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    exchange_account_id UUID NOT NULL REFERENCES exchange_accounts(id),
-    user_id UUID NOT NULL REFERENCES users(id),
+    exchange_account_id UUID NOT NULL REFERENCES developer_exchange_accounts(id),
+    developer_id UUID NOT NULL REFERENCES users(id),
     exchange_id VARCHAR(50) NOT NULL,
     currency VARCHAR(20) NOT NULL,
     address VARCHAR(255) NOT NULL,
-    tag VARCHAR(100), -- For currencies that require memo/tag
+    tag VARCHAR(100), -- For currencies requiring memo/tag
     network VARCHAR(50),
-    address_type VARCHAR(20) DEFAULT 'deposit',
-    label VARCHAR(100),
-    description TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     last_verified_at TIMESTAMP WITH TIME ZONE,
     exchange_metadata JSONB DEFAULT '{}',
-    user_metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    created_by UUID REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
     UNIQUE(exchange_account_id, currency, address),
-    INDEX idx_user_addresses (user_id, is_active),
-    INDEX idx_exchange_currency (exchange_id, currency),
-    INDEX idx_address_lookup (address, exchange_id)
+    INDEX idx_developer_addresses (developer_id, currency),
+    INDEX idx_exchange_addresses (exchange_id, currency)
 );
 
--- Supported Exchanges
-CREATE TABLE supported_exchanges (
-    id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    ccxt_id VARCHAR(50) NOT NULL UNIQUE,
-    website_url VARCHAR(255),
-    api_doc_url VARCHAR(255),
-    is_active BOOLEAN DEFAULT TRUE,
-    supports_deposit_addresses BOOLEAN DEFAULT TRUE,
-    rate_limit_per_minute INTEGER DEFAULT 60,
-    requires_passphrase BOOLEAN DEFAULT FALSE,
-    sandbox_available BOOLEAN DEFAULT FALSE,
-    supported_currencies TEXT[], -- Array of supported currency codes
-    required_permissions JSONB DEFAULT '{}', -- Permissions needed per operation
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Address Sync Log
-CREATE TABLE address_sync_log (
+-- Liquidity Pool Addresses
+CREATE TABLE liquidity_pool_addresses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    exchange_account_id UUID NOT NULL REFERENCES exchange_accounts(id),
-    user_id UUID NOT NULL REFERENCES users(id),
-    initiated_by UUID NOT NULL REFERENCES users(id),
-    sync_type VARCHAR(50) NOT NULL, -- 'full', 'incremental', 'single_currency'
-    currencies_synced TEXT[],
-    addresses_added INTEGER DEFAULT 0,
-    addresses_updated INTEGER DEFAULT 0,
-    addresses_removed INTEGER DEFAULT 0,
-    sync_duration_ms INTEGER,
-    status VARCHAR(20) NOT NULL, -- 'success', 'partial', 'failed'
-    error_details JSONB,
+    pool_id UUID NOT NULL, -- References strategy pools
+    developer_id UUID NOT NULL REFERENCES users(id),
+    address_type VARCHAR(30) NOT NULL, -- 'mpesa_collection', 'mpesa_distribution', 'exchange_trading'
+    address_value VARCHAR(255) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'KES',
+    exchange_id VARCHAR(50), -- NULL for M-Pesa addresses
+    is_active BOOLEAN DEFAULT TRUE,
+    pool_metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    INDEX idx_sync_history (exchange_account_id, created_at),
-    INDEX idx_user_sync (user_id, created_at),
-    INDEX idx_initiated_sync (initiated_by, created_at)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(pool_id, address_type, address_value),
+    INDEX idx_pool_addresses (pool_id, developer_id),
+    INDEX idx_pool_type (address_type, currency)
+);
+
+-- Regular User Pool Participation
+CREATE TABLE user_pool_addresses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    pool_id UUID NOT NULL,
+    developer_id UUID NOT NULL REFERENCES users(id),
+    mpesa_address VARCHAR(15) NOT NULL, -- User's M-Pesa phone number
+    pool_entry_address VARCHAR(255), -- Virtual tracking address
+    allocation_amount DECIMAL(15,2) DEFAULT 0, -- KES amount allocated
+    current_balance DECIMAL(15,2) DEFAULT 0, -- Current KES balance in pool
+    entry_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    is_active BOOLEAN DEFAULT TRUE,
+    participation_metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, pool_id),
+    INDEX idx_user_pools (user_id, is_active),
+    INDEX idx_pool_participants (pool_id, developer_id)
+);
+
+-- Settlement Addresses
+CREATE TABLE settlement_addresses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    from_user_id UUID REFERENCES users(id),
+    to_user_id UUID REFERENCES users(id),
+    settlement_type VARCHAR(30) NOT NULL, -- 'pool_deposit', 'profit_distribution', 'withdrawal'
+    from_address VARCHAR(255) NOT NULL,
+    to_address VARCHAR(255) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'KES',
+    amount DECIMAL(15,2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    pool_id UUID,
+    reference_id VARCHAR(100),
+    settlement_metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE,
+    INDEX idx_settlement_status (status, created_at),
+    INDEX idx_user_settlements (from_user_id, to_user_id),
+    INDEX idx_pool_settlements (pool_id, settlement_type)
 );
 
 -- Address Activity Log
 CREATE TABLE address_activity_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    address_id UUID NOT NULL REFERENCES exchange_deposit_addresses(id),
     user_id UUID NOT NULL REFERENCES users(id),
-    performed_by UUID NOT NULL REFERENCES users(id),
+    address_id UUID, -- Can reference any address table
+    address_value VARCHAR(255) NOT NULL,
     action VARCHAR(50) NOT NULL,
+    amount DECIMAL(15,2),
+    currency VARCHAR(10),
+    pool_id UUID,
     old_values JSONB,
     new_values JSONB,
     ip_address INET,
     user_agent TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    INDEX idx_address_activity (address_id, created_at),
-    INDEX idx_user_activity (user_id, created_at),
-    INDEX idx_performed_activity (performed_by, created_at)
-);
-
--- Wallet Permission Requirements
-CREATE TABLE wallet_operation_permissions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    operation VARCHAR(100) NOT NULL UNIQUE,
-    required_permission VARCHAR(100) NOT NULL,
-    description TEXT,
-    resource_level VARCHAR(50) DEFAULT 'user', -- 'user', 'account', 'system'
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    INDEX idx_address_activity (address_value, created_at),
+    INDEX idx_user_activity (user_id, created_at)
 );
 ```
 
-#### 4.2 API Endpoints
+#### 5.2 API Endpoints
 
-**Exchange Account Management:**
+**Regular User Wallet Management:**
 ```
-POST   /api/v1/wallet/exchanges              - Add new exchange account [wallet_management:write]
-GET    /api/v1/wallet/exchanges              - List user's exchange accounts [wallet_management:read]
-GET    /api/v1/wallet/exchanges/{id}         - Get exchange account details [wallet_management:read]
-PUT    /api/v1/wallet/exchanges/{id}         - Update exchange account [wallet_management:write]
-DELETE /api/v1/wallet/exchanges/{id}         - Remove exchange account [wallet_management:write]
-POST   /api/v1/wallet/exchanges/{id}/test    - Test exchange API connection [wallet_management:read]
-```
-
-**Address CRUD Operations:**
-```
-POST   /api/v1/wallet/addresses              - Create/fetch new deposit address [wallet_management:write]
-GET    /api/v1/wallet/addresses              - List user's addresses [wallet_management:read]
-GET    /api/v1/wallet/addresses/{id}         - Get specific address details [wallet_management:read]
-PUT    /api/v1/wallet/addresses/{id}         - Update address metadata [wallet_management:write]
-DELETE /api/v1/wallet/addresses/{id}         - Remove address [wallet_management:write]
-POST   /api/v1/wallet/addresses/sync         - Sync addresses from exchanges [wallet_management:sync]
+GET    /api/v1/wallet/regular/addresses      - List user's M-Pesa and pool addresses
+POST   /api/v1/wallet/regular/mpesa         - Add/update M-Pesa address
+GET    /api/v1/wallet/regular/balance       - Get KES balance across all pools
+GET    /api/v1/wallet/regular/pools         - List pool participations
+POST   /api/v1/wallet/regular/pools/{pool_id}/join - Join a developer's pool
+DELETE /api/v1/wallet/regular/pools/{pool_id} - Leave a pool
 ```
 
-**Address Management:**
+**Developer Wallet Management:**
 ```
-POST   /api/v1/wallet/addresses/bulk         - Fetch multiple addresses [wallet_management:write]
-GET    /api/v1/wallet/addresses/history/{id} - Get address activity history [wallet_management:read]
-PUT    /api/v1/wallet/addresses/{id}/refresh - Refresh single address from exchange [wallet_management:sync]
-GET    /api/v1/wallet/addresses/by-currency/{currency} - Get addresses by currency [wallet_management:read]
-```
-
-**Exchange Information:**
-```
-GET    /api/v1/wallet/exchanges/supported    - List supported exchanges [public]
-GET    /api/v1/wallet/exchanges/{exchange_id}/currencies - Get supported currencies [wallet_management:read]
-GET    /api/v1/wallet/exchanges/{exchange_id}/info - Get exchange information [wallet_management:read]
+POST   /api/v1/wallet/developer/exchanges    - Add exchange account
+GET    /api/v1/wallet/developer/exchanges    - List exchange accounts
+PUT    /api/v1/wallet/developer/exchanges/{id} - Update exchange account
+POST   /api/v1/wallet/developer/mpesa       - Set M-Pesa settlement address
+GET    /api/v1/wallet/developer/pools       - List managed pools and their addresses
 ```
 
-**Administrative Endpoints:**
+**Exchange Address Management (Developers):**
 ```
-GET    /api/v1/admin/wallet/exchanges        - List all exchange accounts [wallet_management:admin]
-GET    /api/v1/admin/wallet/sync-status      - Get sync status across all accounts [wallet_management:admin]
-POST   /api/v1/admin/wallet/sync/force       - Force sync for specific accounts [wallet_management:admin]
-GET    /api/v1/admin/wallet/analytics        - Exchange usage analytics [wallet_management:admin]
-GET    /api/v1/admin/wallet/users/{id}/accounts - Get user's exchange accounts [wallet_management:admin]
+POST   /api/v1/wallet/addresses/exchange     - Fetch new exchange deposit address
+GET    /api/v1/wallet/addresses/exchange     - List exchange addresses
+PUT    /api/v1/wallet/addresses/exchange/{id} - Update exchange address metadata
+POST   /api/v1/wallet/addresses/sync         - Sync addresses from exchanges
 ```
 
-### 5. Permission Integration
+**Pool Address Management:**
+```
+POST   /api/v1/wallet/pools/{pool_id}/addresses - Create pool-specific addresses
+GET    /api/v1/wallet/pools/{pool_id}/addresses - List pool addresses
+GET    /api/v1/wallet/pools/{pool_id}/participants - List participant addresses
+PUT    /api/v1/wallet/pools/{pool_id}/settlement - Update settlement addresses
+```
 
-#### 5.1 Permission Validation Middleware
+**Settlement Coordination:**
+```
+POST   /api/v1/wallet/settlements            - Create settlement request
+GET    /api/v1/wallet/settlements            - List user's settlements
+GET    /api/v1/wallet/settlements/{id}       - Get settlement details
+PUT    /api/v1/wallet/settlements/{id}/confirm - Confirm settlement completion
+```
+
+#### 5.3 Address Management Service Architecture
 
 ```javascript
-// Wallet-specific permission middleware
-const requireWalletPermission = (operation, resourceLevel = 'user') => {
-  return async (req, res, next) => {
-    try {
-      const user = req.user;
-      const permissionRequired = await getOperationPermission(operation);
-      
-      // Check if user has required permission
-      const hasPermission = await checkUserPermission(
-        user.id, 
-        'wallet_management', 
-        permissionRequired
-      );
-      
-      // Additional resource-level checks
-      if (hasPermission && resourceLevel !== 'public') {
-        const resourceAccess = await validateResourceAccess(
-          user.id, 
-          req.params, 
-          resourceLevel
-        );
-        
-        if (!resourceAccess) {
-          return res.status(403).json({
-            error: {
-              code: 'RESOURCE_ACCESS_DENIED',
-              message: 'Access denied to requested resource',
-              timestamp: new Date().toISOString()
-            }
-          });
-        }
-      }
-      
-      // Log permission check
-      await logWalletPermissionCheck(
-        user.id, 
-        operation, 
-        permissionRequired, 
-        hasPermission
-      );
-      
-      if (!hasPermission) {
-        return res.status(403).json({
-          error: {
-            code: 'INSUFFICIENT_WALLET_PERMISSIONS',
-            message: `Access denied: requires wallet_management:${permissionRequired}`,
-            operation: operation,
-            timestamp: new Date().toISOString()
-          }
-        });
-      }
-      
-      next();
-    } catch (error) {
-      next(error);
+class HybridWalletManager {
+  constructor() {
+    this.regularUserService = new RegularUserWalletService();
+    this.developerWalletService = new DeveloperWalletService();
+    this.poolAddressService = new PoolAddressService();
+    this.settlementService = new SettlementAddressService();
+  }
+
+  async createUserWallet(userId, userType) {
+    if (userType === 'regular') {
+      return await this.regularUserService.createWallet(userId);
+    } else if (userType === 'developer') {
+      return await this.developerWalletService.createWallet(userId);
     }
-  };
+  }
+
+  async getAddressesForUser(userId, userType) {
+    const baseAddresses = await this.getUserAddresses(userId);
+    
+    if (userType === 'regular') {
+      const poolAddresses = await this.poolAddressService.getUserPoolAddresses(userId);
+      return { ...baseAddresses, pools: poolAddresses };
+    } else {
+      const exchangeAddresses = await this.developerWalletService.getExchangeAddresses(userId);
+      const managedPools = await this.poolAddressService.getDeveloperPoolAddresses(userId);
+      return { ...baseAddresses, exchanges: exchangeAddresses, pools: managedPools };
+    }
+  }
+}
+
+// Regular User Wallet Service
+class RegularUserWalletService {
+  async createWallet(userId) {
+    // Create primary M-Pesa address entry
+    const mpesaAddress = await this.createMpesaAddress(userId, 'mpesa_primary');
+    
+    // Create tracking addresses for pool participation
+    const trackingAddress = await this.createTrackingAddress(userId);
+    
+    return {
+      mpesa: mpesaAddress,
+      tracking: trackingAddress,
+      balance: 0,
+      currency: 'KES'
+    };
+  }
+
+  async joinPool(userId, poolId, mpesaAddress, amount) {
+    // Create pool participation address
+    const poolAddress = await this.createPoolParticipationAddress(
+      userId, poolId, mpesaAddress, amount
+    );
+    
+    // Create settlement request
+    await this.settlementService.createPoolDeposit(
+      userId, poolId, mpesaAddress, amount
+    );
+    
+    return poolAddress;
+  }
+}
+
+// Developer Wallet Service  
+class DeveloperWalletService {
+  async createWallet(userId) {
+    // Create M-Pesa settlement address
+    const settlementAddress = await this.createMpesaAddress(userId, 'mpesa_settlement');
+    
+    return {
+      mpesa_settlement: settlementAddress,
+      exchanges: [],
+      pools: []
+    };
+  }
+
+  async addExchangeAccount(userId, exchangeConfig) {
+    // Create exchange account with encrypted credentials
+    const account = await this.createExchangeAccount(userId, exchangeConfig);
+    
+    // Sync deposit addresses via CCXT
+    await this.syncExchangeAddresses(account.id);
+    
+    return account;
+  }
+
+  async syncExchangeAddresses(exchangeAccountId) {
+    const account = await this.getExchangeAccount(exchangeAccountId);
+    const client = await this.createCCXTClient(account);
+    
+    const currencies = ['BTC', 'ETH', 'USDT', 'BNB']; // Configurable
+    
+    for (const currency of currencies) {
+      try {
+        const address = await client.fetchDepositAddress(currency);
+        await this.upsertExchangeAddress(exchangeAccountId, currency, address);
+      } catch (error) {
+        console.error(`Failed to sync ${currency} address:`, error);
+      }
+    }
+  }
+}
+```
+
+### 6. M-Pesa Integration Points
+
+#### 6.1 Address Format Validation
+```javascript
+// M-Pesa address validation (Kenyan phone numbers)
+const MPESA_PATTERNS = {
+  safaricom: /^(254|0)(7[0-9]{8}|1[0-9]{8})$/,
+  formats: [
+    '254XXXXXXXXX',  // International format
+    '07XXXXXXXX',    // Local format
+    '01XXXXXXXX'     // Landline format
+  ]
 };
 
-// Usage examples
-app.post('/api/v1/wallet/exchanges', 
-  requireWalletPermission('create_exchange_account', 'user'),
-  createExchangeAccountController
-);
+function validateMpesaAddress(phoneNumber) {
+  return MPESA_PATTERNS.safaricom.test(phoneNumber);
+}
 
-app.get('/api/v1/admin/wallet/analytics', 
-  requireWalletPermission('admin_analytics', 'system'),
-  getWalletAnalyticsController
-);
+function normalizeMpesaAddress(phoneNumber) {
+  // Convert to international format (254XXXXXXXXX)
+  if (phoneNumber.startsWith('0')) {
+    return '254' + phoneNumber.substring(1);
+  }
+  return phoneNumber;
+}
 ```
 
-#### 5.2 Resource Access Validation
-
+#### 6.2 Settlement Flow Management
 ```javascript
-class WalletAccessValidator {
-  async validateResourceAccess(userId, params, resourceLevel) {
-    switch (resourceLevel) {
-      case 'user':
-        return await this.validateUserResourceAccess(userId, params);
-      case 'account':
-        return await this.validateAccountResourceAccess(userId, params);
-      case 'system':
-        return await this.validateSystemResourceAccess(userId);
-      default:
-        return true; // Public access
-    }
+class SettlementAddressService {
+  async createPoolDeposit(userId, poolId, mpesaFrom, amount) {
+    const developer = await this.getPoolDeveloper(poolId);
+    const poolSettlementAddress = await this.getPoolSettlementAddress(poolId);
+    
+    return await this.createSettlement({
+      from_user_id: userId,
+      to_user_id: developer.id,
+      settlement_type: 'pool_deposit',
+      from_address: mpesaFrom,
+      to_address: poolSettlementAddress,
+      amount: amount,
+      currency: 'KES',
+      pool_id: poolId
+    });
   }
-  
-  async validateUserResourceAccess(userId, params) {
-    // Ensure user can only access their own resources
-    if (params.user_id && params.user_id !== userId) {
-      const hasAdminPermission = await checkUserPermission(
-        userId, 
-        'wallet_management', 
-        'admin'
-      );
-      return hasAdminPermission;
-    }
+
+  async createProfitDistribution(poolId, distributions) {
+    const settlements = [];
     
-    // Validate exchange account ownership
-    if (params.exchange_account_id) {
-      const account = await getExchangeAccount(params.exchange_account_id);
-      return account && account.user_id === userId;
-    }
-    
-    // Validate address ownership
-    if (params.address_id) {
-      const address = await getDepositAddress(params.address_id);
-      return address && address.user_id === userId;
-    }
-    
-    return true;
-  }
-  
-  async validateAccountResourceAccess(userId, params) {
-    // Check if user has access to specific exchange account
-    if (params.exchange_account_id) {
-      const account = await getExchangeAccount(params.exchange_account_id);
-      if (!account) return false;
+    for (const distribution of distributions) {
+      const settlement = await this.createSettlement({
+        from_user_id: distribution.developerId,
+        to_user_id: distribution.userId,
+        settlement_type: 'profit_distribution',
+        from_address: distribution.developerMpesa,
+        to_address: distribution.userMpesa,
+        amount: distribution.profitAmount,
+        currency: 'KES',
+        pool_id: poolId
+      });
       
-      // Owner has access
-      if (account.user_id === userId) return true;
-      
-      // Check if user has delegation or admin permissions
-      return await checkAccountDelegation(userId, params.exchange_account_id);
+      settlements.push(settlement);
     }
     
-    return false;
+    return settlements;
   }
-  
-  async validateSystemResourceAccess(userId) {
-    // Only users with admin permissions can access system-level resources
-    return await checkUserPermission(
-      userId, 
-      'wallet_management', 
-      'admin'
-    );
-  }
-} 
+}
+```
+
+### 7. Security Considerations
+
+#### 7.1 Multi-User Fund Isolation
+- Strict separation between regular user and developer addresses
+- Pool-specific address isolation to prevent cross-contamination
+- Encrypted storage of developer exchange API credentials
+- M-Pesa address validation and normalization
+- Settlement address verification before fund transfers
+
+#### 7.2 Financial Security
+- Audit trail for all address creation and modifications
+- Settlement confirmation requirements
+- Pool balance reconciliation checks
+- Developer exchange account permission validation
+- Rate limiting for sensitive operations
+
+### 8. Performance Requirements
+
+- M-Pesa address validation: < 50ms
+- Pool participation: < 1s response time
+- Exchange address sync: < 30s per exchange
+- Settlement creation: < 200ms
+- Address listing: < 150ms (paginated)
+- Pool balance queries: < 100ms
+
+### 9. Integration Points
+
+#### 9.1 Internal Dependencies
+- **Identity Module:** User authentication and role validation
+- **Payments Module:** M-Pesa API integration for actual transactions
+- **Trading Engine:** Pool strategy execution and performance tracking
+- **Settlements Module:** Profit calculation and distribution logic
+- **Notification Service:** Settlement confirmations and pool updates
+
+#### 9.2 External Services
+- **M-Pesa API:** Payment processing and verification
+- **CCXT Library:** Exchange integration for developers
+- **Exchange APIs:** Deposit address management
+- **Encryption Services:** API credential protection
+- **SMS Services:** M-Pesa transaction confirmations
+
+### 10. Future Enhancements
+
+- Multi-currency support beyond KES
+- Advanced pool management features
+- Automated settlement scheduling
+- Integration with additional Kenyan payment providers
+- Enhanced developer analytics and reporting
+- Mobile money integration beyond M-Pesa
+- Cross-border settlement capabilities
+
+### 11. Testing Strategy
+
+#### 11.1 Unit Tests
+- M-Pesa address validation and normalization
+- Pool participation logic
+- Exchange address synchronization
+- Settlement creation and tracking
+- User type-specific wallet operations
+
+#### 11.2 Integration Tests
+- End-to-end pool joining flow
+- Developer exchange account setup
+- Settlement coordination between users
+- M-Pesa address verification
+- Multi-user isolation verification
+
+#### 11.3 Financial Tests
+- Pool balance reconciliation
+- Settlement amount calculations
+- Cross-user fund isolation
+- Exchange address security
+- Audit trail completeness
