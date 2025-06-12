@@ -16,6 +16,7 @@ os.environ.setdefault("WEBHOOK_SECRET", "testsecret")
 os.environ.setdefault("DEFAULT_EXCHANGE", "binance")
 os.environ.setdefault("DEFAULT_API_KEY", "key")
 os.environ.setdefault("DEFAULT_API_SECRET", "secret")
+os.environ.setdefault("TOKEN_DB_PATH", "test_tokens.db")
 
 from app.identity.auth import verify_signature
 from app.execution.session_pool import ExchangeSessionPool
