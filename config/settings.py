@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     QUEUE_ORDERS: bool = False
     STATIC_API_KEY: str = ""
     REQUIRE_API_KEY: bool = False
+    TOKEN_DB_PATH: str = "tokens.db"
     DATABASE_URL: str = "sqlite:///identity.db"
     DOCUMENT_ENCRYPTION_KEY: str | None = None
 

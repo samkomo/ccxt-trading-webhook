@@ -8,7 +8,7 @@ from typing import Optional
 
 from config.settings import settings
 
-DB_PATH = Path("tokens.db")
+DB_PATH = Path(settings.TOKEN_DB_PATH)
 
 
 def _get_conn():

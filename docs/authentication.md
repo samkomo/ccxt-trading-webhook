@@ -19,6 +19,7 @@ REQUIRE_HTTPS=false
 QUEUE_ORDERS=false
 STATIC_API_KEY=
 REQUIRE_API_KEY=false
+TOKEN_DB_PATH=tokens.db
 ```
 
 | Variable | Description |
@@ -38,6 +39,7 @@ REQUIRE_API_KEY=false
 | `QUEUE_ORDERS` | Enqueue orders to Celery when enabled |
 | `STATIC_API_KEY` | API key expected in the `X-API-Key` header |
 | `REQUIRE_API_KEY` | Enable static API key verification |
+| `TOKEN_DB_PATH` | Path to SQLite file storing tokens |
 
 ## Webhook Payload Format
 ### Secure Mode

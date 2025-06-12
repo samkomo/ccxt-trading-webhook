@@ -2,6 +2,7 @@ import os
 import sys
 import pytest
 from httpx import AsyncClient, ASGITransport
+os.environ.setdefault("TOKEN_DB_PATH", "test_tokens.db")
 from app.identity.auth import verify_token
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
