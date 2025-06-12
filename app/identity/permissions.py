@@ -20,14 +20,25 @@ def permission_required(resource: str, action: str) -> Callable:
 
 
 class PermissionMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app):
+        """Collect routes decorated with ``permission_required`` at startup."""
+        super().__init__(app)
+        self.permission_routes: list[tuple[object, tuple[str, str]]] = []
+        base_app = app
+        while not hasattr(base_app, "routes") and hasattr(base_app, "app"):
+            base_app = base_app.app
+        routes = getattr(base_app, "routes", [])
+        for route in routes:
+            if hasattr(route, "endpoint") and hasattr(route.endpoint, "required_permission"):
+                self.permission_routes.append((route, getattr(route.endpoint, "required_permission")))
+
     async def dispatch(self, request: Request, call_next):
         from starlette.routing import Match
         perm: Tuple[str, str] | None = None
-        for route in request.app.router.routes:
+        for route, required in self.permission_routes:
             match, _ = route.matches(request.scope)
             if match == Match.FULL:
-                if hasattr(route, "endpoint") and hasattr(route.endpoint, "required_permission"):
-                    perm = getattr(route.endpoint, "required_permission")
+                perm = required
                 break
         if not perm:
             return await call_next(request)

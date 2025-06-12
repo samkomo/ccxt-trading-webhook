@@ -46,6 +46,16 @@ async def test_permission_middleware():
         resp = await client.get("/api/v1/identity/roles", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 403
 
+        # Permission middleware should have precomputed routes
+        mw = app.middleware_stack
+        from app.identity.permissions import PermissionMiddleware
+        while hasattr(mw, "app"):
+            if isinstance(mw, PermissionMiddleware):
+                break
+            mw = mw.app
+        assert isinstance(mw, PermissionMiddleware)
+        assert len(mw.permission_routes) >= 1
+
         # Set up permission and role directly in DB
         with SessionLocal() as db:
             perm = Permission(name="role_read", display_name="Role Read", category="role", resource="role_management", action="read")
