@@ -11,13 +11,24 @@ nav:
       - Getting Started: getting-started.md
       - Authentication: authentication.md
       - TradingView Integration: tradingview.md
-      - Feature Overview: features.md
+  - Modules:
+      - Overview: features.md
+      - Identity:
+          - Overview: modules/identity/index.md
+          - Design: modules/identity/design.md
+          - Implementation Plan: modules/identity/implementation-plan.md
+      - Wallet:
+          - Overview: modules/wallet/index.md
+          - Design: modules/wallet/design.md
+      - Marketplace: modules/marketplace/index.md
+      - Subscription: modules/subscription/index.md
+      - Execution: modules/execution/index.md
+      - Ledger: modules/ledger/index.md
+      - Risk: modules/risk/index.md
+      - Dashboard: modules/dashboard/index.md
+      - Compliance: modules/compliance/index.md
   - Reference:
       - API Reference: api-reference.md
-  - Design:
-      - Identity Module: identity_module_design.md
-      - Wallet Module: wallet_module_design.md
-      - Identity Implementation Plan: identity-implementation-plan.md
   - Deployment:
       - Deployment Guide: deployment.md
 
