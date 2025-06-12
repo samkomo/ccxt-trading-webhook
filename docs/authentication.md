@@ -11,8 +11,10 @@ DEFAULT_API_SECRET=your_exchange_api_secret
 LOG_LEVEL=INFO
 RATE_LIMIT=10/minute
 SIGNATURE_CACHE_TTL=300
+SIGNATURE_CACHE_SIZE=1000
 NONCE_TTL=300
 TOKEN_TTL=86400
+TOKEN_RATE_CACHE_SIZE=1000
 REQUIRE_HTTPS=false
 QUEUE_ORDERS=false
 STATIC_API_KEY=
@@ -28,8 +30,10 @@ REQUIRE_API_KEY=false
 | `LOG_LEVEL`        | Logging verbosity |
 | `RATE_LIMIT`       | Requests allowed per timeframe |
 | `SIGNATURE_CACHE_TTL` | Cache TTL for replay-protection signatures |
+| `SIGNATURE_CACHE_SIZE` | Maximum entries for signature cache |
 | `NONCE_TTL` | Expiration time for stored nonces (seconds) |
 | `TOKEN_TTL` | Expiration time for issued tokens (seconds) |
+| `TOKEN_RATE_CACHE_SIZE` | Maximum tracked tokens for rate limiting |
 | `REQUIRE_HTTPS` | Reject plain HTTP requests when set to `true` |
 | `QUEUE_ORDERS` | Enqueue orders to Celery when enabled |
 | `STATIC_API_KEY` | API key expected in the `X-API-Key` header |

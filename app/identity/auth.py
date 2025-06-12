@@ -11,6 +11,7 @@ import hmac
 import hashlib
 import time
 from fastapi import Request, HTTPException, status, Depends
+from cachetools import TTLCache
 from config.settings import settings
 from .token_store import is_token_valid, register_nonce
 from datetime import datetime
@@ -18,19 +19,12 @@ from app.db import SessionLocal
 from .models import ApiToken, UserRole, TokenUsageLog, hash_token
 from sqlalchemy.exc import OperationalError
 import logging
-from typing import Optional, Dict
+from typing import Optional
 
 logger = logging.getLogger("webhook_logger")
 
 # Acceptable clock drift range in seconds
 MAX_TIMESTAMP_AGE = 300  # 5 minutes
-
-# Simple in-memory cache to track recently seen request signatures
-signature_cache: Dict[str, float] = {}
-
-# In-memory token rate tracking {token_hash: [timestamps]}
-token_rate_cache: Dict[str, list[float]] = {}
-
 
 def _parse_rate(rate: str) -> tuple[int, float]:
     count, per = rate.split("/")
@@ -45,16 +39,26 @@ def _parse_rate(rate: str) -> tuple[int, float]:
 
 TOKEN_RATE_LIMIT = _parse_rate(settings.RATE_LIMIT)
 
+# Simple in-memory cache to track recently seen request signatures
+signature_cache: TTLCache = TTLCache(
+    maxsize=settings.SIGNATURE_CACHE_SIZE,
+    ttl=settings.SIGNATURE_CACHE_TTL,
+)
+
+# In-memory token rate tracking using TTLCache {token_hash: usage_count}
+token_rate_cache: TTLCache = TTLCache(
+    maxsize=settings.TOKEN_RATE_CACHE_SIZE,
+    ttl=TOKEN_RATE_LIMIT[1],
+)
+
 
 def _enforce_token_limit(token_hash: str) -> bool:
-    limit, period = TOKEN_RATE_LIMIT
-    now = time.time()
-    usage = token_rate_cache.get(token_hash, [])
-    usage = [t for t in usage if now - t < period]
-    if len(usage) >= limit:
+    """Return False if token exceeded its allowed rate."""
+    limit, _ = TOKEN_RATE_LIMIT
+    count = token_rate_cache.get(token_hash, 0)
+    if count >= limit:
         return False
-    usage.append(now)
-    token_rate_cache[token_hash] = usage
+    token_rate_cache[token_hash] = count + 1  # resets TTL each write
     return True
 
 
@@ -101,19 +105,14 @@ async def verify_signature(request: Request) -> bool:
         if not hmac.compare_digest(expected_signature, signature_header):
             logger.warning("Signature mismatch")
             return False
-        # Clean out expired cache entries
-        now = int(time.time())
-        expired = [sig for sig, exp in signature_cache.items() if exp <= now]
-        for sig in expired:
-            signature_cache.pop(sig, None)
 
         # Reject if we've already seen this signature recently
         if signature_header in signature_cache:
             logger.warning("Replay attack detected: signature reuse")
             return False
 
-        # Store signature with future expiry for replay protection
-        signature_cache[signature_header] = now + settings.SIGNATURE_CACHE_TTL
+        # Store signature for replay protection; TTLCache handles expiry
+        signature_cache[signature_header] = time.time()
 
         return True
     except ValueError:

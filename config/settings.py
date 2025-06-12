@@ -17,7 +17,11 @@ class Settings(BaseSettings):
         RATE_LIMIT (str): Requests allowed per time window (e.g., "10/minute").
         SIGNATURE_CACHE_TTL (int): Seconds to remember request signatures for
             replay protection.
+        SIGNATURE_CACHE_SIZE (int): Maximum number of entries in the signature
+            replay cache.
         TOKEN_TTL (int): Seconds before issued tokens expire.
+        TOKEN_RATE_CACHE_SIZE (int): Maximum number of tracked tokens for rate
+            limiting.
         REQUIRE_HTTPS (bool): Reject non-HTTPS requests when True.
         QUEUE_ORDERS (bool): Enqueue orders to Celery when True.
         STATIC_API_KEY (str): API key required in header when enabled.
@@ -30,8 +34,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     RATE_LIMIT: str = "10/minute"
     SIGNATURE_CACHE_TTL: int = 300
+    SIGNATURE_CACHE_SIZE: int = 1000
     NONCE_TTL: int = 300
     TOKEN_TTL: int = 86400
+    TOKEN_RATE_CACHE_SIZE: int = 1000
     REQUIRE_HTTPS: bool = False
     QUEUE_ORDERS: bool = False
     STATIC_API_KEY: str = ""
