@@ -7,6 +7,7 @@ This page details the major features of the copy-trading webhook platform. The c
 - **KYC verification** – Accept document uploads and allow admin approval.
  - [Design Doc](identity_module_design.md) – Detailed architecture and schema.
 - [Implementation Plan](identity-implementation-plan.md) – Step-by-step rollout.
+ - [API Guide](authentication.md#identity-api-endpoints) – How to register and manage tokens.
 
 ## Wallet (`app.wallet`)
 - **Address CRUD** – Add, list, update, and delete deposit addresses.

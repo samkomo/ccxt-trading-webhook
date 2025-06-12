@@ -71,3 +71,17 @@ python manage_tokens.py revoke <token>
 ```
 Expired tokens are automatically cleaned up during verification.
 
+## Identity API Endpoints
+
+The identity service exposes REST endpoints for user onboarding and token management.
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| `POST` | `/api/v1/identity/register` | Create a new user account |
+| `POST` | `/api/v1/identity/login` | Obtain an auth token |
+| `GET`  | `/api/v1/identity/profile` | Retrieve the current profile |
+| `POST` | `/api/v1/identity/tokens` | Create an API token |
+| `GET`  | `/api/v1/identity/tokens` | List issued tokens |
+
+See the [API reference](api-reference.md) for payload details.
+
