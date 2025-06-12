@@ -1,38 +1,13 @@
 # Feature Overview
 
-This page details the major features of the copy-trading webhook platform. The codebase is organised into domain packages under `app/` which map to these features.
+The platform is organized into modules under the `app/` package. Use the links below for details on each module.
 
-## Identity (`app.identity`)
-- **Token management** – Issue and revoke API tokens with TTL support.
-- **KYC verification** – Accept document uploads and allow admin approval.
- - [Design Doc](identity_module_design.md) – Detailed architecture and schema.
-- [Implementation Plan](identity-implementation-plan.md) – Step-by-step rollout.
- - [API Guide](authentication.md#identity-api-endpoints) – How to register and manage tokens.
-
-## Wallet (`app.wallet`)
-- **Address CRUD** – Add, list, update, and delete deposit addresses.
-- [Design Doc](wallet_module_design.md) – Exchange address management architecture.
-
-## Marketplace (`app.marketplace`)
-- **Strategy catalog** – Paginated list of master strategies with search.
-- **Strategy management** – Masters can create, update, or remove their strategies.
-
-## Subscription (`app.subscription`)
-- **Strategy subscriptions** – Followers subscribe or unsubscribe from strategies.
-
-## Execution (`app.execution`)
-- **Order replication** – Celery workers place follower trades asynchronously and retry on failure.
-
-## Ledger (`app.ledger`)
-- **Trade logging** – Record executed orders and expose history with CSV/JSON export.
-
-## Risk (`app.risk`)
-- **Risk limits** – Configure per-user limits and reject orders exceeding them.
-
-## Dashboard (`app.dashboard`)
-- **Metrics** – Prometheus endpoint with latency and order counters displayed on a simple dashboard or Grafana.
-
-## Compliance (`app.compliance`)
-- **Audit logs** – Track token issuance and nonce usage with cleanup and export options.
-- **Compliance report** – Aggregates KYC status and permission audit data via `/admin/identity/compliance`.
-
+- [Identity](modules/identity.md) – token management and KYC verification.
+- [Wallet](modules/wallet.md) – deposit address management.
+- [Marketplace](modules/marketplace.md) – strategy catalog CRUD.
+- [Subscription](modules/subscription.md) – follower subscription management.
+- [Execution](modules/execution.md) – order replication via Celery workers.
+- [Ledger](modules/ledger.md) – trade history logging and export.
+- [Risk](modules/risk.md) – per-user risk limits.
+- [Dashboard](modules/dashboard.md) – Prometheus metrics endpoint.
+- [Compliance](modules/compliance.md) – audit logging and compliance reports.
