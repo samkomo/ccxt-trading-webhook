@@ -15,6 +15,7 @@ nav:
       - Overview: features.md
       - Identity:
           - Module Guide: modules/identity.md
+          - Description & Usage Guide: identity-module-guide.md
           - Design Doc: identity_module_design.md
           - Implementation Plan: identity-implementation-plan.md
       - Wallet:
